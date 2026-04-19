@@ -44,13 +44,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        try {
-            if (tokenBlacklistService.isTokenRevoked(jwt)) {
-                SecurityContextHolder.clearContext();
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token has been logged out");
-                return;
-            }
+        if (tokenBlacklistService.isTokenRevoked(jwt)) {
+            SecurityContextHolder.clearContext();
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token has been logged out");
+            return;
+        }
 
+        try {
             String username = jwtService.extractUsername(jwt);
 
             if (username != null && jwtService.isTokenValid(jwt, username)) {
@@ -63,19 +63,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         );
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
-                filterChain.doFilter(request, response);
+            } else {
+                SecurityContextHolder.clearContext();
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token");
                 return;
             }
-
-            SecurityContextHolder.clearContext();
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token");
-            return;
         } catch (RuntimeException ex) {
             SecurityContextHolder.clearContext();
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token");
             return;
         }
 
+        filterChain.doFilter(request, response);
     }
 
     private String extractToken(String authHeader) {

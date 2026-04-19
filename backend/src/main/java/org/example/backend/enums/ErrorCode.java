@@ -78,7 +78,18 @@ public enum ErrorCode {
     LEARNING_MODULE_NOT_FOUND(7007, "Learning module not found", HttpStatus.NOT_FOUND),
     FLASHCARD_NOT_FOUND(7008, "Flashcard not found", HttpStatus.NOT_FOUND),
     INVALID_LEARNING_MODULE_DATA(7009, "Invalid learning module data", HttpStatus.BAD_REQUEST),
-    LEARNING_MODULE_TITLE_EXISTED(7010, "Learning module title already exists", HttpStatus.BAD_REQUEST);
+    LEARNING_MODULE_TITLE_EXISTED(7010, "Learning module title already exists", HttpStatus.BAD_REQUEST),
+    LEARNING_PATH_MILESTONE_NOT_FOUND(7011, "Learning path milestone not found", HttpStatus.NOT_FOUND),
+    INVALID_LEARNING_PATH_MILESTONE_DATA(7012, "Invalid learning path milestone data", HttpStatus.BAD_REQUEST),
+    MILESTONE_MODULE_NOT_FOUND(7013, "Milestone module not found", HttpStatus.NOT_FOUND),
+    INVALID_MILESTONE_MODULE_DATA(7014, "Invalid milestone module data", HttpStatus.BAD_REQUEST),
+    MILESTONE_MODULE_EXISTED(7015, "Module already linked to milestone", HttpStatus.BAD_REQUEST),
+    VIDEO_LESSON_NOT_FOUND(7016, "Video lesson not found", HttpStatus.NOT_FOUND),
+    INVALID_VIDEO_LESSON_DATA(7017, "Invalid video lesson data", HttpStatus.BAD_REQUEST),
+    PRACTICE_SET_NOT_FOUND(7018, "Practice set not found", HttpStatus.NOT_FOUND),
+    INVALID_PRACTICE_SET_DATA(7019, "Invalid practice set data", HttpStatus.BAD_REQUEST),
+    QUESTION_NOT_FOUND(7020, "Question not found", HttpStatus.NOT_FOUND),
+    INVALID_QUESTION_DATA(7021, "Invalid question data", HttpStatus.BAD_REQUEST);
 
     int code;
     String message;

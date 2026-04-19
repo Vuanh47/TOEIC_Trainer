@@ -539,4 +539,76 @@ Content-Type: application/json
 - **Default Test Email**: `testuser@example.com`
 - **Default Test Password**: `Test@123456`
 
+---
+
+## Admin Learning Path Content APIs (New)
+
+> Tất cả API dưới đây cần token admin: `Authorization: Bearer <ADMIN_TOKEN>`
+
+### 1) Create milestone cho learning path
+```http
+POST http://localhost:8080/api/admin/learning-paths/{learningPathId}/milestones
+Content-Type: application/json
+
+{
+  "title": "Giai đoạn 1 - Nền tảng",
+  "description": "Xây nền từ vựng và nghe cơ bản",
+  "sortOrder": 1
+}
+```
+
+### 2) Add module vào milestone
+```http
+POST http://localhost:8080/api/admin/milestones/{milestoneId}/modules
+Content-Type: application/json
+
+{
+  "moduleId": 1,
+  "sortOrder": 1,
+  "required": true,
+  "unlockCondition": "DEFAULT"
+}
+```
+
+### 3) Create video lesson cho module VIDEO
+```http
+POST http://localhost:8080/api/admin/video-lessons
+Content-Type: application/json
+
+{
+  "moduleId": 1,
+  "title": "Part 1 Strategy Intro",
+  "description": "Giới thiệu chiến lược làm Part 1",
+  "videoUrl": "https://cdn.example.com/video-part1.mp4",
+  "durationSeconds": 900,
+  "sortOrder": 1,
+  "free": true,
+  "published": true
+}
+```
+
+### 4) Create practice set cho module PRACTICE
+```http
+POST http://localhost:8080/api/admin/practice-sets
+Content-Type: application/json
+
+{
+  "moduleId": 2,
+  "title": "Part 5 Mini Test 01",
+  "description": "Bộ câu hỏi ngữ pháp cơ bản",
+  "partNo": 5,
+  "targetScore": 500,
+  "setType": "PRACTICE",
+  "durationMinutes": 20,
+  "published": true
+}
+```
+
+### 5) APIs list nhanh theo module/milestone
+- `GET /api/admin/learning-paths/{learningPathId}/milestones`
+- `GET /api/admin/milestones/{milestoneId}/modules`
+- `GET /api/admin/video-lessons/modules/{moduleId}`
+- `GET /api/admin/practice-sets/modules/{moduleId}`
+
+
 

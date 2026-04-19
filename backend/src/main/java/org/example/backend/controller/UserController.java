@@ -34,7 +34,7 @@ public class UserController {
     }
     
     @GetMapping
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<List<UserResponse>>> getAllUsers() {
         List<UserResponse> users = userService.getUserAll();
         return ApiResponseUtil.success(users, SuccessCode.USER_CREATED);
