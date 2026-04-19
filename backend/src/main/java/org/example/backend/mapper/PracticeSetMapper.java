@@ -6,6 +6,7 @@ import org.example.backend.dto.response.PracticeSetResponse;
 import java.util.List;
 @Mapper(componentModel = "spring")
 public interface PracticeSetMapper {
+    @Mapping(target = "moduleId", source = "module.id")
     PracticeSetResponse toResponse(PracticeSet entity);
     List<PracticeSetResponse> toResponseList(List<PracticeSet> entities);
 }

@@ -15,6 +15,10 @@ public class PracticeSet extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "module_id")
+    private LearningModule module;
+
     @Column(nullable = false, length = 255)
     private String title;
 

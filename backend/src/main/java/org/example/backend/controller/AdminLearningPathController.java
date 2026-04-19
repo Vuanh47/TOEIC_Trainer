@@ -51,9 +51,15 @@ public class AdminLearningPathController {
         return ApiResponseUtil.success(response, SuccessCode.LEARNING_PATH_UPDATED);
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/deactive/{id}")
     public ResponseEntity<ApiResponse<Void>> deactivateLearningPath(@PathVariable Long id) {
         adminLearningPathService.deactivateLearningPath(id);
         return ApiResponseUtil.success(SuccessCode.LEARNING_PATH_DEACTIVATED);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteLearningPath(@PathVariable Long id) {
+        adminLearningPathService.deleteLearningPath(id);
+        return ApiResponseUtil.success(SuccessCode.LEARNING_PATH_DELETED);
     }
 }

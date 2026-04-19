@@ -1,13 +1,10 @@
-package org.example.backend.dto.response;
+package org.example.backend.dto.request;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 import org.example.backend.enums.PracticeSetType;
-import java.time.LocalDateTime;
-@Getter
-@Setter
-public class PracticeSetResponse {
-    private Long id;
+
+@Data
+public class CreatePracticeSetRequest {
     private Long moduleId;
     private String title;
     private String description;
@@ -16,6 +13,5 @@ public class PracticeSetResponse {
     private PracticeSetType setType;
     private Integer durationMinutes;
     private Boolean published;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
 }
+

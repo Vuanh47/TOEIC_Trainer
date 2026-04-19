@@ -114,6 +114,12 @@ public class AdminLearningPathService {
         learningPathRepository.save(learningPath);
     }
 
+    @Transactional
+    public void deleteLearningPath(Long id) {
+        LearningPath learningPath = findLearningPath(id);
+        learningPathRepository.delete(learningPath);
+    }
+
     private LearningPath findLearningPath(Long id) {
         return learningPathRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.LEARNING_PATH_NOT_FOUND));
