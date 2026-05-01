@@ -42,6 +42,10 @@ public class Flashcard extends BaseEntity {
     @JoinColumn(name = "module_id")
     private LearningModule module;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "flashcard_collection_id")
+    private FlashcardCollection flashcardCollection;
+
     @Column(name = "is_active", nullable = false)
     private Boolean active = true;
 }

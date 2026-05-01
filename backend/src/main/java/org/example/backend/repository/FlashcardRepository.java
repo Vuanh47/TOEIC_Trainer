@@ -14,6 +14,8 @@ public interface FlashcardRepository extends JpaRepository<Flashcard, Long> {
 
     List<Flashcard> findAllByModuleIdAndActiveTrueOrderByCreatedAtDesc(Long moduleId);
 
+    long countByModuleIdAndActiveTrue(Long moduleId);
+
     @Query("""
             select f from Flashcard f
             where lower(f.englishWord) like lower(concat('%', :keyword, '%'))
@@ -44,5 +46,9 @@ public interface FlashcardRepository extends JpaRepository<Flashcard, Long> {
             order by f.createdAt desc
             """)
     List<Flashcard> searchActiveByModuleAndKeyword(@Param("moduleId") Long moduleId, @Param("keyword") String keyword);
+
+    List<Flashcard> findByFlashcardCollectionId(Long collectionId);
+
+    long countByFlashcardCollectionId(Long collectionId);
 }
 

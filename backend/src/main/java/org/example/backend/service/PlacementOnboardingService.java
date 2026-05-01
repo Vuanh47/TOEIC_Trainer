@@ -34,11 +34,11 @@ public class PlacementOnboardingService {
     private final UserLearningPathMapper userLearningPathMapper;
 
     @Transactional
-    public UserLearningPathResponse assignRecommendedLearningPath(String email) {
+    public UserLearningPathResponse assignRecommendedLearningPath(String email, Integer requestedTargetScore) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        Integer recommendedTargetScore = resolveRecommendedTargetScore(user);
+        Integer recommendedTargetScore = resolveRecommendedTargetScore(user, requestedTargetScore);
         LearningPath learningPath = selectLearningPath(recommendedTargetScore);
 
         archiveActivePaths(user.getId());
@@ -53,7 +53,13 @@ public class PlacementOnboardingService {
         return userLearningPathMapper.toResponse(saved);
     }
 
-    private Integer resolveRecommendedTargetScore(User user) {
+    private Integer resolveRecommendedTargetScore(User user, Integer requestedTargetScore) {
+        if (requestedTargetScore != null) {
+            validateTargetScore(requestedTargetScore);
+            user.setTargetScore(requestedTargetScore);
+            return requestedTargetScore;
+        }
+
         Integer userTarget = Optional.ofNullable(user.getTargetScore()).orElse(300);
 
         Optional<UserPracticeAttempt> latestPlacementAttempt =
@@ -69,6 +75,12 @@ public class PlacementOnboardingService {
 
         int placementScore = (int) Math.round(latestPlacementAttempt.get().getScore());
         return Math.max(userTarget, placementScore);
+    }
+
+    private void validateTargetScore(Integer targetScore) {
+        if (targetScore < 10 || targetScore > 990) {
+            throw new AppException(ErrorCode.INVALID_TARGET_SCORE);
+        }
     }
 
     private LearningPath selectLearningPath(Integer targetScore) {

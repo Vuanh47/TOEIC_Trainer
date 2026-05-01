@@ -5,7 +5,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.example.backend.entity.UserLearningPath;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface UserLearningPathRepository extends JpaRepository<UserLearningPath, Long> {
 	List<UserLearningPath> findByUserIdAndStatus(Long userId, PathStatus status);
+
+	Optional<UserLearningPath> findTopByUserIdAndStatusOrderByAssignedAtDesc(Long userId, PathStatus status);
 }

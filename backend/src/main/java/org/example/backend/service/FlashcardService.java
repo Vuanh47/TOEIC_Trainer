@@ -4,14 +4,20 @@ import lombok.RequiredArgsConstructor;
 import org.example.backend.dto.request.CreateAdminFlashcardRequest;
 import org.example.backend.dto.request.CreatePersonalFlashcardRequest;
 import org.example.backend.dto.request.UpdateAdminFlashcardRequest;
+import org.example.backend.dto.request.UpdatePersonalFlashcardRequest;
+import org.example.backend.dto.request.CreateFlashcardCollectionRequest;
+import org.example.backend.dto.request.UpdateFlashcardCollectionRequest;
+import org.example.backend.dto.response.FlashcardCollectionResponse;
 import org.example.backend.dto.response.FlashcardResponse;
 import org.example.backend.entity.Flashcard;
+import org.example.backend.entity.FlashcardCollection;
 import org.example.backend.entity.LearningModule;
 import org.example.backend.entity.User;
 import org.example.backend.enums.ErrorCode;
 import org.example.backend.exception.AppException;
 import org.example.backend.mapper.FlashcardMapper;
 import org.example.backend.repository.FlashcardRepository;
+import org.example.backend.repository.FlashcardCollectionRepository;
 import org.example.backend.repository.LearningModuleRepository;
 import org.example.backend.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -24,6 +30,7 @@ import java.util.List;
 public class FlashcardService {
 
     private final FlashcardRepository flashcardRepository;
+    private final FlashcardCollectionRepository flashcardCollectionRepository;
     private final UserRepository userRepository;
     private final LearningModuleRepository learningModuleRepository;
     private final FlashcardMapper flashcardMapper;
@@ -209,6 +216,133 @@ public class FlashcardService {
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    // Personal flashcard update/delete
+    @Transactional
+    public FlashcardResponse updatePersonalFlashcard(String email, Long flashcardId, UpdatePersonalFlashcardRequest request) {
+        User owner = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        Flashcard flashcard = flashcardRepository.findById(flashcardId)
+                .orElseThrow(() -> new AppException(ErrorCode.FLASHCARD_NOT_FOUND));
+
+        if (!flashcard.getOwner().getId().equals(owner.getId())) {
+            throw new AppException(ErrorCode.INVALID_FLASHCARD_DATA);
+        }
+
+        if (request.getEnglishWord() != null) flashcard.setEnglishWord(trimToNull(request.getEnglishWord()));
+        if (request.getMeaningVi() != null) flashcard.setMeaningVi(trimToNull(request.getMeaningVi()));
+        if (request.getExampleSentence() != null) flashcard.setExampleSentence(trimToNull(request.getExampleSentence()));
+        if (request.getPronunciation() != null) flashcard.setPronunciation(trimToNull(request.getPronunciation()));
+        if (request.getFlashcardCollectionId() != null) {
+            FlashcardCollection collection = flashcardCollectionRepository.findByIdAndOwnerId(request.getFlashcardCollectionId(), owner.getId())
+                    .orElseThrow(() -> new AppException(ErrorCode.INVALID_FLASHCARD_DATA));
+            flashcard.setFlashcardCollection(collection);
+        }
+
+        return flashcardMapper.toResponse(flashcardRepository.save(flashcard));
+    }
+
+    @Transactional
+    public void deletePersonalFlashcard(String email, Long flashcardId) {
+        User owner = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        Flashcard flashcard = flashcardRepository.findById(flashcardId)
+                .orElseThrow(() -> new AppException(ErrorCode.FLASHCARD_NOT_FOUND));
+
+        if (!flashcard.getOwner().getId().equals(owner.getId())) {
+            throw new AppException(ErrorCode.INVALID_FLASHCARD_DATA);
+        }
+
+        flashcardRepository.delete(flashcard);
+    }
+
+    // Collection management
+    @Transactional
+    public FlashcardCollectionResponse createCollection(String email, CreateFlashcardCollectionRequest request) {
+        User owner = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        FlashcardCollection collection = new FlashcardCollection();
+        collection.setName(trimToNull(request.getName()));
+        collection.setDescription(trimToNull(request.getDescription()));
+        collection.setOwner(owner);
+        collection.setActive(true);
+        collection.setSortOrder(0);
+
+        return toCollectionResponse(flashcardCollectionRepository.save(collection));
+    }
+
+    @Transactional(readOnly = true)
+    public List<FlashcardCollectionResponse> getMyCollections(String email) {
+        User owner = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        return flashcardCollectionRepository.findByOwnerIdAndActiveTrueOrderBySortOrderAsc(owner.getId())
+                .stream()
+                .map(this::toCollectionResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public FlashcardCollectionResponse getCollectionDetail(String email, Long collectionId) {
+        User owner = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        FlashcardCollection collection = flashcardCollectionRepository.findByIdAndOwnerId(collectionId, owner.getId())
+                .orElseThrow(() -> new AppException(ErrorCode.INVALID_FLASHCARD_DATA));
+
+        FlashcardCollectionResponse response = toCollectionResponse(collection);
+        List<FlashcardResponse> flashcards = flashcardRepository.findByFlashcardCollectionId(collectionId)
+                .stream()
+                .map(flashcardMapper::toResponse)
+                .toList();
+        response.setFlashcards(flashcards);
+        return response;
+    }
+
+    @Transactional
+    public FlashcardCollectionResponse updateCollection(String email, Long collectionId, UpdateFlashcardCollectionRequest request) {
+        User owner = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        FlashcardCollection collection = flashcardCollectionRepository.findByIdAndOwnerId(collectionId, owner.getId())
+                .orElseThrow(() -> new AppException(ErrorCode.INVALID_FLASHCARD_DATA));
+
+        if (request.getName() != null) collection.setName(trimToNull(request.getName()));
+        if (request.getDescription() != null) collection.setDescription(trimToNull(request.getDescription()));
+
+        return toCollectionResponse(flashcardCollectionRepository.save(collection));
+    }
+
+    @Transactional
+    public void deleteCollection(String email, Long collectionId) {
+        User owner = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        FlashcardCollection collection = flashcardCollectionRepository.findByIdAndOwnerId(collectionId, owner.getId())
+                .orElseThrow(() -> new AppException(ErrorCode.INVALID_FLASHCARD_DATA));
+
+        // Remove collection reference from all flashcards in this collection
+        flashcardRepository.findByFlashcardCollectionId(collectionId)
+                .forEach(flashcard -> flashcard.setFlashcardCollection(null));
+
+        flashcardCollectionRepository.delete(collection);
+    }
+
+    private FlashcardCollectionResponse toCollectionResponse(FlashcardCollection collection) {
+        FlashcardCollectionResponse response = new FlashcardCollectionResponse();
+        response.setId(collection.getId());
+        response.setName(collection.getName());
+        response.setDescription(collection.getDescription());
+        response.setSortOrder(collection.getSortOrder());
+        response.setActive(collection.getActive());
+        response.setCreatedAt(collection.getCreatedAt());
+        response.setUpdatedAt(collection.getUpdatedAt());
+        response.setFlashcardCount((int) flashcardRepository.countByFlashcardCollectionId(collection.getId()));
+        return response;
     }
 }
 

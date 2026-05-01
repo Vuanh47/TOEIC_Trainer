@@ -59,7 +59,7 @@ public enum ErrorCode {
     // File processing errors
     INVALID_FILE(4001, "File không hợp lệ", HttpStatus.BAD_REQUEST),
     INVALID_FILE_TYPE(4002, "Loại file không được hỗ trợ. Chỉ chấp nhận file ảnh (JPG, PNG)", HttpStatus.BAD_REQUEST),
-    FILE_SIZE_EXCEEDED(4003, "Kích thước file vượt quá giới hạn cho phép (10MB)", HttpStatus.BAD_REQUEST),
+    FILE_SIZE_EXCEEDED(4003, "Kích thước file vượt quá giới hạn cho phép", HttpStatus.BAD_REQUEST),
     FILE_PROCESSING_ERROR(4004, "Lỗi khi xử lý file", HttpStatus.BAD_REQUEST),
 
     // AI Image API errors
@@ -89,7 +89,10 @@ public enum ErrorCode {
     PRACTICE_SET_NOT_FOUND(7018, "Practice set not found", HttpStatus.NOT_FOUND),
     INVALID_PRACTICE_SET_DATA(7019, "Invalid practice set data", HttpStatus.BAD_REQUEST),
     QUESTION_NOT_FOUND(7020, "Question not found", HttpStatus.NOT_FOUND),
-    INVALID_QUESTION_DATA(7021, "Invalid question data", HttpStatus.BAD_REQUEST);
+    INVALID_QUESTION_DATA(7021, "Invalid question data", HttpStatus.BAD_REQUEST),
+    INVALID_PROGRESS_DATA(7022, "Invalid learning progress data", HttpStatus.BAD_REQUEST),
+    VIDEO_UPLOAD_FAILED(7023, "Video upload failed", HttpStatus.BAD_REQUEST),
+    VIDEO_UPLOAD_CONFIG_MISSING(7024, "Cloud upload config missing", HttpStatus.BAD_REQUEST);
 
     int code;
     String message;

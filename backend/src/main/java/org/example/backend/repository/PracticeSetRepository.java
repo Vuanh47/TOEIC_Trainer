@@ -6,4 +6,8 @@ import java.util.List;
 
 public interface PracticeSetRepository extends JpaRepository<PracticeSet, Long> {
 	List<PracticeSet> findByModuleIdOrderByCreatedAtDesc(Long moduleId);
+
+	List<PracticeSet> findByModuleIdAndPublishedTrueOrderByCreatedAtDesc(Long moduleId);
+
+	long countByModuleIdAndPublishedTrue(Long moduleId);
 }
