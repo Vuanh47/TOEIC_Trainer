@@ -84,6 +84,9 @@ public enum SuccessCode {
     QUESTION_DELETED(1081, "Question deleted successfully", HttpStatus.OK),
     PRACTICE_SET_QUESTION_ASSIGNED(1082, "Practice set questions assigned successfully", HttpStatus.OK),
     PRACTICE_SET_QUESTION_LISTED(1083, "Practice set questions listed successfully", HttpStatus.OK),
+    USER_LESSON_PROGRESS_UPDATED(1086, "User lesson progress updated successfully", HttpStatus.OK),
+    USER_MODULE_PROGRESS_UPDATED(1087, "User module progress updated successfully", HttpStatus.OK),
+    VIDEO_FILE_UPLOADED(1088, "Video file uploaded successfully", HttpStatus.OK),
 
     // --- Message codes (2001-2020) ---
     SEND_MESSAGE_SUCCESS(2001, "Message sent successfully", HttpStatus.OK),
@@ -96,6 +99,11 @@ public enum SuccessCode {
     ALL_MESSAGES_MARKED_READ(2008, "All messages marked as read successfully", HttpStatus.OK),
     GET_ROOMS_SUCCESS(2009, "Rooms retrieved successfully", HttpStatus.OK),
     GET_UNREAD_COUNT_SUCCESS(2010, "Unread count retrieved successfully", HttpStatus.OK),
+
+    FLASHCARD_COLLECTION_CREATED(1089, "Flashcard collection created successfully", HttpStatus.CREATED),
+    FLASHCARD_COLLECTION_UPDATED(1090, "Flashcard collection updated successfully", HttpStatus.OK),
+    FLASHCARD_COLLECTION_DELETED(1091, "Flashcard collection deleted successfully", HttpStatus.OK),
+    FLASHCARD_COLLECTION_LISTED(1092, "Flashcard collections listed successfully", HttpStatus.OK),
 
     PATIENT_CLASSIFICATION_DELETED(1023, "Xóa phân loại bệnh nhân thành công", HttpStatus.OK),
     CLASSIFICATION_RETRIEVED(1022, "Lấy thông tin phân loại thành công", HttpStatus.OK),

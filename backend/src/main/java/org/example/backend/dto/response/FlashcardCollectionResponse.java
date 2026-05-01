@@ -2,19 +2,21 @@ package org.example.backend.dto.response;
 
 import lombok.Getter;
 import lombok.Setter;
+
 import java.time.LocalDateTime;
+import java.util.List;
+
 @Getter
 @Setter
-public class VideoLessonResponse {
+public class FlashcardCollectionResponse {
     private Long id;
-    private Long moduleId;
-    private String title;
+    private String name;
     private String description;
-    private String videoUrl;
-    private Integer durationSeconds;
     private Integer sortOrder;
-    private Boolean free;
-    private Boolean published;
+    private Boolean active;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Integer flashcardCount;
+    private List<FlashcardResponse> flashcards;
 }
+

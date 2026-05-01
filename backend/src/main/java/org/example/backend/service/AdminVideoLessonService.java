@@ -3,14 +3,14 @@ package org.example.backend.service;
 import lombok.RequiredArgsConstructor;
 import org.example.backend.dto.request.CreateVideoLessonRequest;
 import org.example.backend.dto.request.UpdateVideoLessonRequest;
+import org.example.backend.dto.request.UploadAndCreateVideoLessonRequest;
+import org.example.backend.dto.response.VideoUploadResponse;
 import org.example.backend.dto.response.VideoLessonResponse;
-import org.example.backend.entity.Course;
 import org.example.backend.entity.LearningModule;
 import org.example.backend.entity.VideoLesson;
 import org.example.backend.enums.ErrorCode;
 import org.example.backend.exception.AppException;
 import org.example.backend.mapper.VideoLessonMapper;
-import org.example.backend.repository.CourseRepository;
 import org.example.backend.repository.LearningModuleRepository;
 import org.example.backend.repository.VideoLessonRepository;
 import org.springframework.stereotype.Service;
@@ -24,8 +24,8 @@ public class AdminVideoLessonService {
 
     private final VideoLessonRepository videoLessonRepository;
     private final LearningModuleRepository learningModuleRepository;
-    private final CourseRepository courseRepository;
     private final VideoLessonMapper videoLessonMapper;
+    private final CloudinaryUploadService cloudinaryUploadService;
 
     @Transactional
     public VideoLessonResponse createVideoLesson(CreateVideoLessonRequest request) {
@@ -42,7 +42,7 @@ public class AdminVideoLessonService {
         }
 
         VideoLesson videoLesson = new VideoLesson();
-        videoLesson.setCourse(resolveCourse(request.getCourseId()));
+        videoLesson.setCourse(null);
         videoLesson.setModule(module);
         videoLesson.setTitle(title);
         videoLesson.setDescription(trimToNull(request.getDescription()));
@@ -53,6 +53,11 @@ public class AdminVideoLessonService {
         videoLesson.setPublished(request.getPublished() == null ? false : request.getPublished());
 
         return videoLessonMapper.toResponse(videoLessonRepository.save(videoLesson));
+    }
+
+    @Transactional(readOnly = true)
+    public List<VideoLessonResponse> getAllVideoLessons() {
+        return videoLessonMapper.toResponseList(videoLessonRepository.findAll());
     }
 
     @Transactional(readOnly = true)
@@ -68,10 +73,6 @@ public class AdminVideoLessonService {
         }
 
         VideoLesson videoLesson = findVideoLesson(videoLessonId);
-
-        if (request.getCourseId() != null) {
-            videoLesson.setCourse(resolveCourse(request.getCourseId()));
-        }
 
         if (request.getModuleId() != null) {
             videoLesson.setModule(findModule(request.getModuleId()));
@@ -147,14 +148,6 @@ public class AdminVideoLessonService {
         }
     }
 
-    private Course resolveCourse(Long courseId) {
-        if (courseId == null) {
-            return null;
-        }
-        return courseRepository.findById(courseId)
-                .orElseThrow(() -> new AppException(ErrorCode.INVALID_VIDEO_LESSON_DATA));
-    }
-
     private boolean isValidPositive(Integer value) {
         return value != null && value > 0;
     }
@@ -170,5 +163,38 @@ public class AdminVideoLessonService {
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
     }
-}
 
+    @Transactional
+    public VideoLessonResponse uploadAndCreateVideoLesson(
+            org.springframework.web.multipart.MultipartFile file,
+            UploadAndCreateVideoLessonRequest request) {
+        if (file == null || file.isEmpty() || request == null) {
+            throw new AppException(ErrorCode.INVALID_VIDEO_LESSON_DATA);
+        }
+
+        // Step 1: Upload video to Cloudinary
+        VideoUploadResponse uploadResponse = cloudinaryUploadService.uploadVideo(file);
+
+        // Step 2: Create VideoLesson record with data from upload response
+        LearningModule module = findModule(request.getModuleId());
+        String title = trimToNull(request.getTitle());
+
+        if (title == null || !isValidSortOrder(request.getSortOrder())) {
+            throw new AppException(ErrorCode.INVALID_VIDEO_LESSON_DATA);
+        }
+
+        VideoLesson videoLesson = new VideoLesson();
+        videoLesson.setCourse(null);
+        videoLesson.setModule(module);
+        videoLesson.setTitle(title);
+        videoLesson.setDescription(trimToNull(request.getDescription()));
+        // Auto-populate from Cloudinary response
+        videoLesson.setVideoUrl(uploadResponse.getSecureUrl());
+        videoLesson.setDurationSeconds(uploadResponse.getDurationSeconds());
+        videoLesson.setSortOrder(request.getSortOrder());
+        videoLesson.setFree(request.getFree() == null ? false : request.getFree());
+        videoLesson.setPublished(request.getPublished() == null ? false : request.getPublished());
+
+        return videoLessonMapper.toResponse(videoLessonRepository.save(videoLesson));
+    }
+}

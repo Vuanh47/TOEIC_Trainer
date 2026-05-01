@@ -4,7 +4,6 @@ import lombok.Data;
 
 @Data
 public class UpdateVideoLessonRequest {
-    private Long courseId;
     private Long moduleId;
     private String title;
     private String description;

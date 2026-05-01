@@ -1,28 +1,24 @@
 package org.example.backend.exception;
 
-import lombok.Builder;
 import org.example.backend.dto.response.ApiResponse;
-
 import org.example.backend.enums.ErrorCode;
+import org.example.backend.util.ApiResponseUtil;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
-import java.time.LocalDateTime;
-
-@Builder
 @ControllerAdvice
 public class GlobalExceptionHandler {
     @ExceptionHandler(value = AppException.class)
     ResponseEntity<ApiResponse<Void>> handleAppException(AppException exception) {
         ErrorCode error = exception.getErrorCode();
-        ApiResponse<Void> apiResponse = ApiResponse.<Void>builder()
-                .code(error.getCode())
-                .message(error.getMessage())
-                .status(error.getStatus())
-                .timestamp(LocalDateTime.now())
-                .build();
+        return ApiResponseUtil.error(error);
+    }
 
-        return ResponseEntity.status(error.getStatus()).body(apiResponse);
+    @ExceptionHandler(value = MaxUploadSizeExceededException.class)
+    ResponseEntity<ApiResponse<Void>> handleMaxUploadSize(MaxUploadSizeExceededException exception) {
+        // Return a standardized API error response when upload size exceeds limit
+        return ApiResponseUtil.error(ErrorCode.FILE_SIZE_EXCEEDED);
     }
 }
