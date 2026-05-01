@@ -1,15 +1,78 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, radius, spacing } from "@/src/assets/styles/theme";
+import { colors, radius, spacing } from "@/src/assets/styles/user-theme";
 import AppHeader from "@/src/components/user/AppHeader";
 import ProgressBar from "@/src/components/user/ProgressBar";
 import SurfaceCard from "@/src/components/user/SurfaceCard";
 import UserScreen from "@/src/components/user/UserScreen";
+import { useAuth } from "@/src/hooks/use-auth";
+import { getUserModuleContent, getUserRoadmap } from "@/src/services/user.service";
+import { UserModuleContent, UserRoadmapModuleItem } from "@/src/types/user-api";
 import { pushRoute } from "@/src/utils/navigation";
 
 export default function GrammarScreen() {
+  const { auth, isHydrated } = useAuth();
+  const params = useLocalSearchParams<{ moduleId?: string }>();
+
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [moduleInfo, setModuleInfo] = useState<UserRoadmapModuleItem | null>(null);
+  const [moduleContent, setModuleContent] = useState<UserModuleContent | null>(null);
+
+  const selectedModuleId = useMemo(() => {
+    if (!params.moduleId) return undefined;
+    const parsed = Number(params.moduleId);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }, [params.moduleId]);
+
+  const loadModule = useCallback(async () => {
+    if (!auth.accessToken) return;
+
+    try {
+      setLoading(true);
+      setErrorMessage(null);
+
+      const roadmapPayload = await getUserRoadmap(auth.accessToken);
+      const roadmap = roadmapPayload.data;
+      const roadmapModules = (roadmap?.milestones ?? [])
+        .flatMap((milestone) => milestone.modules)
+        .sort((a, b) => a.sortOrder - b.sortOrder);
+
+      const fallbackModuleId =
+        roadmap?.currentModuleId ?? roadmapModules[0]?.moduleId ?? selectedModuleId;
+      const resolvedModuleId = selectedModuleId ?? fallbackModuleId;
+
+      if (!resolvedModuleId) {
+        setModuleInfo(null);
+        setModuleContent(null);
+        setErrorMessage("Ban chua duoc gan module nao trong lo trinh.");
+        return;
+      }
+
+      const matchedModule = roadmapModules.find((module) => module.moduleId === resolvedModuleId);
+      setModuleInfo(matchedModule ?? null);
+
+      const modulePayload = await getUserModuleContent(auth.accessToken, resolvedModuleId);
+      setModuleContent(modulePayload.data ?? null);
+    } catch (error) {
+      setModuleInfo(null);
+      setModuleContent(null);
+      setErrorMessage(error instanceof Error ? error.message : "Khong the tai du lieu module.");
+    } finally {
+      setLoading(false);
+    }
+  }, [auth.accessToken, selectedModuleId]);
+
+  useEffect(() => {
+    if (!isHydrated || !auth.accessToken) return;
+    loadModule();
+  }, [auth.accessToken, isHydrated, loadModule]);
+
+  const activeModuleId = moduleContent?.moduleId ?? moduleInfo?.moduleId;
+
   return (
     <UserScreen>
       <AppHeader
@@ -19,71 +82,79 @@ export default function GrammarScreen() {
         title="Academic Concierge"
       />
 
-      <Text style={styles.levelLabel}>CURRENT FOCUS</Text>
-      <Text style={styles.title}>Unit 3: Active Voices</Text>
+      <Text style={styles.levelLabel}>
+        CURRENT FOCUS • {moduleContent?.moduleType ?? moduleInfo?.moduleType ?? "MODULE"}
+      </Text>
+      <Text style={styles.title}>{moduleContent?.title ?? moduleInfo?.title ?? "Learning module"}</Text>
       <Text style={styles.subtitle}>
-        Di qua lo trinh ngu phap, video huong dan va bo note ca nhan trong mot
-        man hinh danh rieng cho user.
+        {moduleContent?.description ?? moduleInfo?.description ?? "Chon module de hoc video, vocab va practice theo lo trinh admin da tao."}
       </Text>
 
+      {loading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator color={colors.primaryDark} />
+          <Text style={styles.loadingText}>Dang tai noi dung module...</Text>
+        </View>
+      ) : null}
+
+      {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+
       <SurfaceCard style={styles.heroCard}>
-        <Text style={styles.heroCardTitle}>Course progress</Text>
-        <ProgressBar accentColor={colors.primary} rightLabel="45%" value={45} />
+        <Text style={styles.heroCardTitle}>Module progress</Text>
+        <ProgressBar
+          accentColor={colors.primary}
+          rightLabel={`${Math.round(moduleInfo?.progressPercent ?? 0)}%`}
+          value={moduleInfo?.progressPercent ?? 0}
+        />
         <View style={styles.unitList}>
-          {[
-            { done: true, label: "Nouns & Pronouns" },
-            { done: true, label: "Sentence Structure" },
-            { current: true, label: "Active Voices" },
-            { label: "Prepositions", locked: true },
-          ].map((unit) => (
-            <View key={unit.label} style={styles.unitRow}>
-              <View
-                style={[
-                  styles.unitDot,
-                  unit.done ? styles.unitDotDone : null,
-                  unit.current ? styles.unitDotCurrent : null,
-                  unit.locked ? styles.unitDotLocked : null,
-                ]}
-              >
-                <Ionicons
-                  color={unit.current || unit.done ? colors.surface : "#AAB1C4"}
-                  name={
-                    unit.done
-                      ? "checkmark"
-                      : unit.current
-                        ? "play"
-                        : "lock-closed-outline"
-                  }
-                  size={14}
-                />
-              </View>
-              <Text
-                style={[
-                  styles.unitLabel,
-                  unit.locked ? styles.unitLabelLocked : null,
-                ]}
-              >
-                {unit.label}
-              </Text>
+          <View style={styles.unitRow}>
+            <View style={[styles.unitDot, styles.unitDotCurrent]}>
+              <Ionicons color={colors.surface} name="play" size={14} />
             </View>
-          ))}
+            <Text style={styles.unitLabel}>
+              {moduleContent?.videoLessons?.length ?? 0} video lessons
+            </Text>
+          </View>
+          <View style={styles.unitRow}>
+            <View style={[styles.unitDot, styles.unitDotDone]}>
+              <Ionicons color={colors.surface} name="book-outline" size={14} />
+            </View>
+            <Text style={styles.unitLabel}>
+              {moduleContent?.flashcards?.length ?? 0} vocabulary cards
+            </Text>
+          </View>
+          <View style={styles.unitRow}>
+            <View style={styles.unitDot}>
+              <Ionicons color={colors.surface} name="document-text-outline" size={14} />
+            </View>
+            <Text style={styles.unitLabel}>
+              {moduleContent?.practiceSets?.length ?? 0} practice sets
+            </Text>
+          </View>
         </View>
       </SurfaceCard>
 
       <SurfaceCard style={styles.actionCard}>
         <View style={styles.actionRow}>
           <View style={styles.actionIcon}>
-            <Ionicons color={colors.primaryDark} name="book-outline" size={22} />
+            <Ionicons color={colors.primaryDark} name="map-outline" size={22} />
           </View>
           <View style={styles.actionBody}>
-            <Text style={styles.actionTitle}>Roadmap & Formula</Text>
+            <Text style={styles.actionTitle}>Roadmap & detail</Text>
             <Text style={styles.actionDesc}>
-              Doc cong thuc, vi du va canh bao de xu ly ngu phap nhanh hon.
+              Xem thong tin tong hop cua module: video, tu vung va bo bai tap.
             </Text>
           </View>
         </View>
-        <Pressable onPress={() => pushRoute("/user/roadmap")} style={styles.primaryAction}>
-          <Text style={styles.primaryActionText}>Mo bai hoc</Text>
+        <Pressable
+          onPress={() => {
+            if (activeModuleId) {
+              pushRoute(`/user/roadmap?moduleId=${activeModuleId}`);
+            }
+          }}
+          style={styles.primaryAction}
+        >
+          <Text style={styles.primaryActionText}>Mo chi tiet module</Text>
         </Pressable>
       </SurfaceCard>
 
@@ -93,18 +164,35 @@ export default function GrammarScreen() {
             <Ionicons color={colors.primaryDark} name="play-circle-outline" size={22} />
           </View>
           <View style={styles.actionBody}>
-            <Text style={styles.actionTitle}>Video lesson & notes</Text>
+            <Text style={styles.actionTitle}>Hoc va luyen tap</Text>
             <Text style={styles.actionDesc}>
-              Xem video, transcript va mo note bottom sheet de luu nhanh.
+              Di truc tiep vao danh sach video, vocabulary cards va ghi chu ca nhan.
             </Text>
           </View>
         </View>
         <View style={styles.dualActions}>
-          <Pressable onPress={() => pushRoute("/user/lesson")} style={styles.secondaryAction}>
-            <Text style={styles.secondaryActionText}>Xem video</Text>
+          <Pressable
+            onPress={() => {
+              if (activeModuleId) {
+                pushRoute(`/user/lesson?moduleId=${activeModuleId}`);
+              }
+            }}
+            style={styles.secondaryAction}
+          >
+            <Text style={styles.secondaryActionText}>Video</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              if (activeModuleId) {
+                pushRoute(`/user/cards?moduleId=${activeModuleId}`);
+              }
+            }}
+            style={styles.secondaryAction}
+          >
+            <Text style={styles.secondaryActionText}>Tu vung</Text>
           </Pressable>
           <Pressable onPress={() => pushRoute("/user/notebook")} style={styles.secondaryAction}>
-            <Text style={styles.secondaryActionText}>Mo ghi chu</Text>
+            <Text style={styles.secondaryActionText}>Ghi chu</Text>
           </Pressable>
         </View>
       </SurfaceCard>
@@ -147,6 +235,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.md,
   },
+  errorText: {
+    backgroundColor: "rgba(249,112,102,0.1)",
+    borderColor: "rgba(249,112,102,0.24)",
+    borderRadius: 8,
+    borderWidth: 1,
+    color: colors.danger,
+    fontSize: 13,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
   heroCard: {
     marginBottom: spacing.lg,
   },
@@ -163,6 +262,16 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 2,
     marginBottom: spacing.sm,
+  },
+  loadingText: {
+    color: colors.textMuted,
+    fontSize: 14,
+  },
+  loadingWrap: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
   },
   primaryAction: {
     alignItems: "center",
@@ -184,7 +293,7 @@ const styles = StyleSheet.create({
   },
   secondaryActionText: {
     color: colors.text,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "800",
   },
   subtitle: {
@@ -202,7 +311,7 @@ const styles = StyleSheet.create({
   },
   unitDot: {
     alignItems: "center",
-    backgroundColor: "#BBC1D3",
+    backgroundColor: "#4B6FB8",
     borderRadius: radius.pill,
     height: 24,
     justifyContent: "center",
@@ -214,16 +323,10 @@ const styles = StyleSheet.create({
   unitDotDone: {
     backgroundColor: "#24963F",
   },
-  unitDotLocked: {
-    backgroundColor: "#D8DCE8",
-  },
   unitLabel: {
     color: colors.text,
     fontSize: 15,
     fontWeight: "700",
-  },
-  unitLabelLocked: {
-    color: "#ABB0BF",
   },
   unitList: {
     gap: spacing.md,

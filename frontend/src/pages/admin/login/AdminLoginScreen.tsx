@@ -16,6 +16,7 @@ import PrimaryButton from '@/src/components/common/PrimaryButton';
 import TextField, { FieldIconButton } from '@/src/components/common/TextField';
 import { API_BASE_URL } from '@/src/config/env';
 import { useAuth } from '@/src/hooks/use-auth';
+import { ApiError } from '@/src/services/api.client';
 import { loginAdmin } from '@/src/services/admin-auth.service';
 
 export default function AdminLoginScreen() {
@@ -52,9 +53,22 @@ export default function AdminLoginScreen() {
       signIn(payload.data);
       router.replace('/admin/dashboard');
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Khong the dang nhap admin.';
-      setErrorMessage(message);
+      if (error instanceof ApiError) {
+        const raw = error.message.trim().toLowerCase();
+        if (
+          raw === 'login failed' ||
+          raw.includes('bad credentials') ||
+          raw.includes('invalid')
+        ) {
+          setErrorMessage('Sai email hoac mat khau.');
+        } else {
+          setErrorMessage(error.message);
+        }
+      } else if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage('Khong the dang nhap admin.');
+      }
     } finally {
       setLoading(false);
     }

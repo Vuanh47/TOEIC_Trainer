@@ -1,6 +1,7 @@
 import { Redirect } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Platform,
   Pressable,
   ScrollView,
@@ -164,7 +165,10 @@ const flashcardFields: AdminField[] = [
   { name: "active", label: "Active", type: "switch" },
 ];
 
-const videoFields = (modules: LearningModuleApiItem[]): AdminField[] => [
+const videoFields = (
+  modules: LearningModuleApiItem[],
+  uploadedVideoUrl?: string,
+): AdminField[] => [
   {
     name: "moduleId",
     label: "Module",
@@ -175,9 +179,14 @@ const videoFields = (modules: LearningModuleApiItem[]): AdminField[] => [
       value: String(module.id),
     })),
   },
-  { name: "courseId", label: "Course ID", type: "number" },
   { name: "title", label: "Title", type: "text", required: true },
-  { name: "videoUrl", label: "Video URL", type: "text", required: true },
+  {
+    name: "videoUrl",
+    label: "Video URL",
+    placeholder: uploadedVideoUrl ? "Da upload xong, giu URL nay de tao lesson." : "https://...",
+    type: "text",
+    required: true,
+  },
   {
     name: "durationSeconds",
     label: "Duration seconds",
@@ -276,6 +285,10 @@ export default function AdminDashboardScreen() {
   const [loading, setLoading] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [working, setWorking] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null);
+  const [uploadedVideoUrl, setUploadedVideoUrl] = useState("");
+  const [uploadedVideoDuration, setUploadedVideoDuration] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const services = useMemo(() => {
@@ -317,6 +330,43 @@ export default function AdminDashboardScreen() {
       error instanceof Error ? error.message : "Khong the xu ly yeu cau.",
     );
   }, []);
+
+  const handleUploadVideoFile = useCallback(async () => {
+    if (!services) return;
+    if (Platform.OS !== "web") {
+      Alert.alert("Upload", "Upload file chi ho tro tren web.");
+      return;
+    }
+
+    const picker = document.createElement("input");
+    picker.type = "file";
+    picker.accept = "video/*";
+    picker.onchange = async () => {
+      const file = picker.files?.[0];
+      if (!file) return;
+
+      try {
+        setUploadingVideo(true);
+        setErrorMessage(null);
+        setSelectedVideoFile(file);
+        const response = await services.videos.upload(file);
+        const uploadedUrl = response.data?.playbackUrl ?? response.data?.secureUrl ?? "";
+        if (!uploadedUrl) {
+          throw new Error("Upload xong nhung khong nhan duoc URL video.");
+        }
+
+        setUploadedVideoUrl(uploadedUrl);
+        setUploadedVideoDuration(response.data?.durationSeconds ?? null);
+        Alert.alert("Upload", "Upload video thanh cong. URL da duoc dien vao form video.");
+      } catch (error) {
+        handleError(error);
+      } finally {
+        setUploadingVideo(false);
+      }
+    };
+
+    picker.click();
+  }, [handleError, services]);
 
   const handleLogout = useCallback(async () => {
     if (!auth.accessToken || isLoggingOut) return;
@@ -976,6 +1026,30 @@ export default function AdminDashboardScreen() {
         title="Flashcard APIs"
         working={working}
       />
+      <View style={styles.uploadBox}>
+        <Text style={styles.uploadTitle}>Video upload</Text>
+        <Text style={styles.uploadSubtitle}>
+          Upload file video len Cloudinary roi dung URL nay de tao lesson.
+        </Text>
+        <Pressable
+          disabled={!services || uploadingVideo || working}
+          onPress={handleUploadVideoFile}
+          style={styles.uploadButton}
+        >
+          <Text style={styles.uploadButtonText}>
+            {uploadingVideo ? "Dang upload..." : "Chon file video va upload"}
+          </Text>
+        </Pressable>
+        <Text style={styles.uploadHint}>
+          URL moi nhat: {uploadedVideoUrl || "(chua upload)"}
+        </Text>
+        <Text style={styles.uploadHint}>
+          File da chon: {selectedVideoFile?.name ?? "(chua chon file)"}
+        </Text>
+        {uploadedVideoDuration ? (
+          <Text style={styles.uploadHint}>Duration tu Cloudinary: {uploadedVideoDuration}s</Text>
+        ) : null}
+      </View>
       <AdminCrudPanel
         columns={[
           { label: "ID", render: (item) => String(item.id) },
@@ -986,39 +1060,49 @@ export default function AdminDashboardScreen() {
           },
           { label: "Published", render: (item) => yesNo(item.published) },
         ]}
-        fields={videoFields(modules)}
+        fields={videoFields(modules, uploadedVideoUrl)}
         getInitialValues={(item?: VideoLessonApiItem) => ({
-          courseId: String(item?.courseId ?? ""),
           description: item?.description ?? "",
-          durationSeconds: String(item?.durationSeconds ?? 900),
+          durationSeconds: String(item?.durationSeconds ?? uploadedVideoDuration ?? 900),
           free: item?.free ?? false,
           moduleId: String(item?.moduleId ?? selectedModuleId ?? ""),
           published: item?.published ?? true,
           sortOrder: String(item?.sortOrder ?? videos.length + 1),
           title: item?.title ?? "",
-          videoUrl: item?.videoUrl ?? "",
+          videoUrl: item?.videoUrl ?? uploadedVideoUrl ?? "",
         })}
         getItemId={(item) => item.id}
         onCreate={(values) =>
           runAction(
             () => {
               const payload = {
-                courseId: numberValue(values, "courseId"),
                 description: nullableText(values, "description"),
-                durationSeconds: numberValue(
-                  values,
-                  "durationSeconds",
-                  true,
-                )!,
                 free: boolValue(values, "free"),
                 moduleId: numberValue(values, "moduleId", true)!,
                 published: boolValue(values, "published"),
                 sortOrder: numberValue(values, "sortOrder", true)!,
                 title: text(values, "title", true),
-                videoUrl: text(values, "videoUrl", true),
               };
-              console.log('Creating video payload', payload);
-              return services!.videos.create(payload).then(() => undefined);
+              if (selectedVideoFile) {
+                return services!.videos
+                  .uploadAndCreate(selectedVideoFile, {
+                    ...payload,
+                    description: payload.description ?? null,
+                  })
+                  .then(() => {
+                    setUploadedVideoUrl("");
+                    setUploadedVideoDuration(null);
+                    setSelectedVideoFile(null);
+                  });
+              }
+
+              return services!.videos
+                .create({
+                  ...payload,
+                  durationSeconds: numberValue(values, "durationSeconds", true)!,
+                  videoUrl: text(values, "videoUrl", true),
+                })
+                .then(() => undefined);
             },
             loadContent,
           )
@@ -1036,7 +1120,6 @@ export default function AdminDashboardScreen() {
           runAction(
             () => {
               const payload = {
-                courseId: numberValue(values, "courseId"),
                 description: nullableText(values, "description"),
                 durationSeconds: numberValue(
                   values,
@@ -1489,6 +1572,40 @@ const styles = StyleSheet.create({
   selectorTextActive: {
     color: colors.text,
     fontWeight: "900",
+  },
+  uploadBox: {
+    backgroundColor: "#10213A",
+    borderColor: "#2B4D7C",
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: spacing.md,
+  },
+  uploadButton: {
+    alignItems: "center",
+    backgroundColor: "#2F6EA8",
+    borderRadius: 10,
+    marginTop: spacing.sm,
+    paddingVertical: 12,
+  },
+  uploadButtonText: {
+    color: colors.surface,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  uploadHint: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: spacing.sm,
+  },
+  uploadSubtitle: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  uploadTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "800",
   },
   summaryRow: {
     flexDirection: "row",

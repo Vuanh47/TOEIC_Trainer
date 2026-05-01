@@ -3,7 +3,7 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, radius, spacing } from "@/src/assets/styles/theme";
+import { colors, radius, spacing } from "@/src/assets/styles/user-theme";
 import AppHeader, { AvatarBadge } from "@/src/components/user/AppHeader";
 import SurfaceCard from "@/src/components/user/SurfaceCard";
 import UserScreen from "@/src/components/user/UserScreen";
@@ -16,6 +16,8 @@ export default function OnboardingScreen() {
   const { auth } = useAuth();
   const [selectedGoalId, setSelectedGoalId] = useState("goal-500");
   const [submitting, setSubmitting] = useState(false);
+  const selectedGoal =
+    goalPlans.find((goal) => goal.id === selectedGoalId) ?? goalPlans[1];
 
   const handleAssignPath = async () => {
     if (!auth.accessToken) {
@@ -25,7 +27,7 @@ export default function OnboardingScreen() {
 
     try {
       setSubmitting(true);
-      await assignRecommendedPath(auth.accessToken);
+      await assignRecommendedPath(auth.accessToken, selectedGoal.targetScore);
       replaceRoute("/user/home");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Khong the tao lo trinh.";
@@ -125,7 +127,9 @@ export default function OnboardingScreen() {
       <View style={styles.stickyBar}>
         <View style={styles.stickyInfo}>
           <Ionicons color={colors.surface} name="sparkles-outline" size={18} />
-          <Text style={styles.stickyText}>Da chon: Muc tieu 500+</Text>
+          <Text style={styles.stickyText}>
+            Da chon: Muc tieu {selectedGoal.targetScore}+
+          </Text>
         </View>
         <Pressable onPress={handleAssignPath} style={styles.stickyButton}>
           <Text style={styles.stickyButtonText}>Tao lo trinh cho toi</Text>

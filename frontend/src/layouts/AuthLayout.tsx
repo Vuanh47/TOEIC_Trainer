@@ -44,7 +44,7 @@ export default function AuthLayout({
 
 const styles = StyleSheet.create({
   backgroundGlow: {
-    backgroundColor: 'rgba(242,177,93,0.24)',
+    backgroundColor: 'rgba(201, 176, 138, 0.2)',
     borderRadius: 220,
     height: 260,
     position: 'absolute',
@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     width: 260,
   },
   backgroundGlowSecondary: {
-    backgroundColor: 'rgba(36,87,166,0.08)',
+    backgroundColor: 'rgba(86, 120, 176, 0.12)',
     borderRadius: 240,
     height: 240,
     left: -110,
@@ -62,18 +62,18 @@ const styles = StyleSheet.create({
     width: 240,
   },
   backgroundMid: {
-    backgroundColor: colors.backgroundStrong,
+    backgroundColor: '#BECBE3',
     borderBottomLeftRadius: 52,
     borderBottomRightRadius: 52,
     height: 280,
     left: 20,
-    opacity: 0.5,
+    opacity: 0.55,
     position: 'absolute',
     right: 20,
     top: 34,
   },
   backgroundTop: {
-    backgroundColor: '#DCE7F8',
+    backgroundColor: '#D7E0F0',
     borderBottomLeftRadius: 52,
     borderBottomRightRadius: 52,
     height: 250,
@@ -83,16 +83,16 @@ const styles = StyleSheet.create({
     top: 0,
   },
   card: {
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: '#FFFFFF',
     borderRadius: radius.xl,
-    borderColor: 'rgba(255,255,255,0.7)',
+    borderColor: '#E8EEF8',
     borderWidth: 1,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.xl,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 24 },
-    shadowOpacity: 0.18,
-    shadowRadius: 34,
+    shadowOpacity: 0.14,
+    shadowRadius: 24,
   },
   cardCompact: {
     paddingHorizontal: spacing.md,
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     paddingTop: 72,
   },
   safeArea: {
-    backgroundColor: colors.background,
+    backgroundColor: '#E9EFFA',
     flex: 1,
   },
 });

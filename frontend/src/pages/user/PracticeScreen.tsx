@@ -1,111 +1,173 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, radius, spacing } from "@/src/assets/styles/theme";
+import { colors, radius, spacing } from "@/src/assets/styles/user-theme";
 import AppHeader, { AvatarBadge } from "@/src/components/user/AppHeader";
 import ProgressBar from "@/src/components/user/ProgressBar";
 import UserScreen from "@/src/components/user/UserScreen";
-import { lessonUnits } from "@/src/pages/user/mock-data";
+import { useAuth } from "@/src/hooks/use-auth";
+import { getUserRoadmap } from "@/src/services/user.service";
+import { UserRoadmap, UserRoadmapModuleItem } from "@/src/types/user-api";
 import { pushRoute } from "@/src/utils/navigation";
 
+type ModuleNode = {
+  isCompleted: boolean;
+  isCurrent: boolean;
+  module: UserRoadmapModuleItem;
+};
+
 export default function PracticeScreen() {
+  const { auth, isHydrated } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [roadmap, setRoadmap] = useState<UserRoadmap | null>(null);
+
+  const loadRoadmap = useCallback(async () => {
+    if (!auth.accessToken) return;
+
+    try {
+      setLoading(true);
+      setErrorMessage(null);
+      const payload = await getUserRoadmap(auth.accessToken);
+      setRoadmap(payload.data ?? null);
+    } catch (error) {
+      setRoadmap(null);
+      setErrorMessage(error instanceof Error ? error.message : "Khong the tai lo trinh hoc.");
+    } finally {
+      setLoading(false);
+    }
+  }, [auth.accessToken]);
+
+  useEffect(() => {
+    if (!isHydrated || !auth.accessToken) return;
+    loadRoadmap();
+  }, [auth.accessToken, isHydrated, loadRoadmap]);
+
+  const moduleNodes = useMemo<ModuleNode[]>(() => {
+    if (!roadmap) return [];
+
+    const orderedModules = roadmap.milestones
+      .flatMap((milestone) => milestone.modules)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+
+    return orderedModules.map((module) => ({
+      isCompleted: module.progressStatus === "COMPLETED",
+      isCurrent:
+        module.moduleId === roadmap.currentModuleId ||
+        module.progressStatus === "IN_PROGRESS",
+      module,
+    }));
+  }, [roadmap]);
+
+  const currentModule = useMemo(
+    () => moduleNodes.find((item) => item.isCurrent)?.module ?? moduleNodes[0]?.module ?? null,
+    [moduleNodes],
+  );
+
+  const openModule = (moduleId: number) => {
+    pushRoute(`/user/grammar?moduleId=${moduleId}`);
+  };
+
   return (
     <UserScreen>
-      <AppHeader
-        rightSlot={<AvatarBadge label="A" />}
-        title="Academic Concierge"
-      />
+      <AppHeader rightSlot={<AvatarBadge label="A" />} title="Academic Concierge" />
 
-      <Text style={styles.levelLabel}>LEVEL 4: BUSINESS MASTERY</Text>
-      <Text style={styles.title}>TOEIC Listening & Reading</Text>
+      <Text style={styles.levelLabel}>
+        TARGET {roadmap?.targetScore ?? auth.user?.targetScore ?? "--"}+
+      </Text>
+      <Text style={styles.title}>{roadmap?.learningPathTitle ?? "TOEIC Learning Path"}</Text>
 
       <View style={styles.progressShell}>
         <ProgressBar
           label="COURSE PROGRESS"
-          rightLabel="45%"
-          value={45}
+          rightLabel={`${Math.round(roadmap?.progressPercent ?? 0)}%`}
+          value={roadmap?.progressPercent ?? 0}
         />
       </View>
 
+      {loading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator color={colors.primaryDark} />
+          <Text style={styles.loadingText}>Dang dong bo lo trinh tu backend...</Text>
+        </View>
+      ) : null}
+
+      {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+
+      {!loading && !errorMessage && moduleNodes.length === 0 ? (
+        <Text style={styles.emptyText}>Chua co module nao trong lo trinh hien tai.</Text>
+      ) : null}
+
       <View style={styles.timeline}>
         <View style={styles.dashedLine} />
-        {lessonUnits.map((unit, index) => {
+        {moduleNodes.map((item, index) => {
           const alignRight = index % 2 === 1;
-          const isCurrent = unit.status === "current";
-          const isDone = unit.status === "done";
-          const isLocked = unit.status === "locked";
+          const isCurrent = item.isCurrent;
+          const isDone = item.isCompleted;
 
           return (
             <View
-              key={unit.id}
+              key={item.module.moduleId}
               style={[
                 styles.timelineItem,
                 alignRight ? styles.timelineItemRight : styles.timelineItemLeft,
               ]}
             >
               <Pressable
-                onPress={() =>
-                  isLocked
-                    ? undefined
-                    : pushRoute(isCurrent ? "/user/roadmap" : "/user/grammar")
-                }
+                onPress={() => openModule(item.module.moduleId)}
                 style={[
                   styles.node,
                   isDone ? styles.nodeDone : null,
                   isCurrent ? styles.nodeCurrent : null,
-                  isLocked ? styles.nodeLocked : null,
                 ]}
               >
                 <Ionicons
                   color={isCurrent || isDone ? colors.primaryDark : "#ACB1C0"}
-                  name={
-                    isDone
-                      ? "checkmark"
-                      : isCurrent
-                        ? "school-outline"
-                        : "lock-closed-outline"
-                  }
+                  name={isDone ? "checkmark" : isCurrent ? "school-outline" : "book-outline"}
                   size={28}
                 />
               </Pressable>
 
               {isCurrent ? (
                 <View style={styles.startBubble}>
-                  <Text style={styles.startBubbleText}>START: VERB TENSES</Text>
+                  <Text style={styles.startBubbleText}>CURRENT MODULE</Text>
                 </View>
               ) : null}
 
-              <Text
-                style={[
-                  styles.unitTitle,
-                  isLocked ? styles.unitTitleLocked : null,
-                ]}
-              >
-                {unit.title}
+              <Text style={styles.unitTitle}>{item.module.title}</Text>
+              <Text style={styles.unitMeta}>
+                {item.module.videoLessonCount} videos • {item.module.flashcardCount} vocab •{" "}
+                {item.module.practiceSetCount} practices
               </Text>
 
-              {isCurrent ? (
-                <View style={styles.unitProgressWrap}>
-                  <ProgressBar
-                    accentColor="#24963F"
-                    rightLabel={`${unit.progress}%`}
-                    value={unit.progress}
-                  />
-                </View>
-              ) : null}
+              <View style={styles.unitProgressWrap}>
+                <ProgressBar
+                  accentColor={isDone ? "#24963F" : colors.primary}
+                  rightLabel={`${Math.round(item.module.progressPercent)}%`}
+                  value={item.module.progressPercent}
+                />
+              </View>
             </View>
           );
         })}
 
         <View style={styles.rewardWrap}>
           <View style={styles.rewardCircle}>
-            <Ionicons color="#BCC0CF" name="gift-outline" size={30} />
+            <Ionicons color="#BCC0CF" name="ribbon-outline" size={30} />
           </View>
-          <Text style={styles.rewardLabel}>SECTION EXAM REWARD</Text>
+          <Text style={styles.rewardLabel}>{roadmap?.status ?? "ACTIVE PATH"}</Text>
         </View>
       </View>
 
-      <Pressable onPress={() => pushRoute("/user/grammar")} style={styles.energyButton}>
+      <Pressable
+        onPress={() => {
+          if (currentModule) {
+            openModule(currentModule.moduleId);
+          }
+        }}
+        style={styles.energyButton}
+      >
         <Ionicons color={colors.text} name="flash" size={22} />
       </Pressable>
     </UserScreen>
@@ -122,6 +184,12 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 0,
   },
+  emptyText: {
+    color: colors.textMuted,
+    fontSize: 15,
+    marginBottom: spacing.lg,
+    textAlign: "center",
+  },
   energyButton: {
     alignItems: "center",
     alignSelf: "flex-end",
@@ -132,12 +200,33 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     width: 56,
   },
+  errorText: {
+    backgroundColor: "rgba(249,112,102,0.1)",
+    borderColor: "rgba(249,112,102,0.24)",
+    borderRadius: 8,
+    borderWidth: 1,
+    color: colors.danger,
+    fontSize: 13,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
   levelLabel: {
     color: "#1A7C2B",
     fontSize: 12,
     fontWeight: "900",
     letterSpacing: 1.8,
     marginBottom: spacing.sm,
+  },
+  loadingText: {
+    color: colors.textMuted,
+    fontSize: 14,
+  },
+  loadingWrap: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
   },
   node: {
     alignItems: "center",
@@ -162,9 +251,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.1,
     shadowRadius: 16,
-  },
-  nodeLocked: {
-    backgroundColor: "#EFEFF7",
   },
   progressShell: {
     backgroundColor: "rgba(255,255,255,0.88)",
@@ -234,6 +320,12 @@ const styles = StyleSheet.create({
     lineHeight: 34,
     marginBottom: spacing.lg,
   },
+  unitMeta: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: "center",
+  },
   unitProgressWrap: {
     marginTop: spacing.sm,
     width: "100%",
@@ -244,8 +336,5 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginTop: spacing.md,
     textAlign: "center",
-  },
-  unitTitleLocked: {
-    color: "#BCC0CF",
   },
 });

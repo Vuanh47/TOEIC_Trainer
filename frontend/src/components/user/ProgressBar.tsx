@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors, radius, spacing } from "@/src/assets/styles/theme";
+import { colors, radius, spacing } from "@/src/assets/styles/user-theme";
 
 type ProgressBarProps = {
   label?: string;
@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   track: {
-    backgroundColor: "#E7EAF6",
+    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.pill,
     height: 10,
     overflow: "hidden",

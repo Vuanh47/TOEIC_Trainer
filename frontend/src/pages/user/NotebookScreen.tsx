@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
-import { colors, radius, spacing } from "@/src/assets/styles/theme";
+import { colors, radius, spacing } from "@/src/assets/styles/user-theme";
 import AppHeader from "@/src/components/user/AppHeader";
 import UserScreen from "@/src/components/user/UserScreen";
 import { transcriptSegments } from "@/src/pages/user/mock-data";

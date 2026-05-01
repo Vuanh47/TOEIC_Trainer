@@ -1,21 +1,24 @@
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, radius, spacing } from "@/src/assets/styles/theme";
+import { colors, radius, spacing } from "@/src/assets/styles/user-theme";
 import AppHeader, { AvatarBadge } from "@/src/components/user/AppHeader";
 import SectionTitle from "@/src/components/user/SectionTitle";
 import SurfaceCard from "@/src/components/user/SurfaceCard";
 import UserScreen from "@/src/components/user/UserScreen";
 import { useAuth } from "@/src/hooks/use-auth";
 import { notebookEntries, userProfile } from "@/src/pages/user/mock-data";
+import { logout } from "@/src/services/auth.service";
 import { getMyProfile, updateMyTargetScore } from "@/src/services/user.service";
 import { pushRoute } from "@/src/utils/navigation";
 
 export default function ProfileScreen() {
-  const { auth } = useAuth();
+  const { auth, signOut } = useAuth();
   const [targetScore, setTargetScore] = useState<number>(userProfile.targetScore);
   const [fullName, setFullName] = useState<string>(userProfile.fullName);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     if (!auth.accessToken) return;
@@ -46,6 +49,21 @@ export default function ProfileScreen() {
       const message =
         error instanceof Error ? error.message : "Khong the cap nhat muc tieu.";
       Alert.alert("Profile", message);
+    }
+  };
+
+  const handleLogout = async () => {
+    if (!auth.accessToken || loggingOut) return;
+
+    try {
+      setLoggingOut(true);
+      await logout(auth.accessToken, auth.tokenType ?? "Bearer");
+    } catch {
+      // best-effort call to backend logout
+    } finally {
+      signOut();
+      setLoggingOut(false);
+      router.replace("/");
     }
   };
 
@@ -134,6 +152,20 @@ export default function ProfileScreen() {
           <Text style={styles.statsLabel}>Study streak</Text>
           <Text style={styles.statsValue}>{userProfile.streakDays} ngay</Text>
         </View>
+        <Pressable
+          disabled={loggingOut}
+          onPress={handleLogout}
+          style={({ pressed }) => [
+            styles.logoutButton,
+            pressed ? styles.logoutButtonPressed : null,
+            loggingOut ? styles.logoutButtonDisabled : null,
+          ]}
+        >
+          <Ionicons color="#FDECEC" name="log-out-outline" size={18} />
+          <Text style={styles.logoutText}>
+            {loggingOut ? "Dang xu ly..." : "Dang xuat"}
+          </Text>
+        </Pressable>
       </SurfaceCard>
     </UserScreen>
   );
@@ -243,6 +275,31 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     lineHeight: 24,
+  },
+  logoutButton: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "#C44C4C",
+    borderRadius: radius.pill,
+    flexDirection: "row",
+    gap: spacing.xs,
+    marginTop: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 12,
+  },
+  logoutButtonDisabled: {
+    opacity: 0.78,
+  },
+  logoutButtonPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.99 }],
+  },
+  logoutText: {
+    color: "#FDECEC",
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
   },
   statsCard: {
     marginTop: spacing.xl,

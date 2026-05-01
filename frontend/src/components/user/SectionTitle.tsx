@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, spacing } from "@/src/assets/styles/theme";
+import { colors, spacing } from "@/src/assets/styles/user-theme";
 
 type SectionTitleProps = {
   title: string;

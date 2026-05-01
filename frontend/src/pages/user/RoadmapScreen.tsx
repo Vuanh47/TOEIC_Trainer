@@ -1,104 +1,278 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, radius, spacing } from "@/src/assets/styles/theme";
+import { colors, radius, spacing } from "@/src/assets/styles/user-theme";
 import AppHeader from "@/src/components/user/AppHeader";
+import ProgressBar from "@/src/components/user/ProgressBar";
 import SurfaceCard from "@/src/components/user/SurfaceCard";
 import UserScreen from "@/src/components/user/UserScreen";
+import { useAuth } from "@/src/hooks/use-auth";
+import {
+  completeOrUnlockNextModule,
+  getUserModuleContent,
+  getUserRoadmap,
+} from "@/src/services/user.service";
+import { UserModuleContent, UserRoadmapModuleItem } from "@/src/types/user-api";
 import { pushRoute } from "@/src/utils/navigation";
 
 export default function RoadmapScreen() {
+  const { auth, isHydrated } = useAuth();
+  const params = useLocalSearchParams<{ moduleId?: string }>();
+
+  const [loading, setLoading] = useState(false);
+  const [unlocking, setUnlocking] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [moduleInfo, setModuleInfo] = useState<UserRoadmapModuleItem | null>(null);
+  const [moduleContent, setModuleContent] = useState<UserModuleContent | null>(null);
+  const [vocabStepDone, setVocabStepDone] = useState(false);
+  const [practiceStepDone, setPracticeStepDone] = useState(false);
+
+  const selectedModuleId = useMemo(() => {
+    if (!params.moduleId) return undefined;
+    const parsed = Number(params.moduleId);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }, [params.moduleId]);
+
+  const loadModule = useCallback(async () => {
+    if (!auth.accessToken) return;
+
+    try {
+      setLoading(true);
+      setErrorMessage(null);
+
+      const roadmapPayload = await getUserRoadmap(auth.accessToken);
+      const roadmap = roadmapPayload.data;
+      const roadmapModules = (roadmap?.milestones ?? [])
+        .flatMap((milestone) => milestone.modules)
+        .sort((a, b) => a.sortOrder - b.sortOrder);
+
+      const fallbackModuleId =
+        roadmap?.currentModuleId ?? roadmapModules[0]?.moduleId ?? selectedModuleId;
+      const resolvedModuleId = selectedModuleId ?? fallbackModuleId;
+
+      if (!resolvedModuleId) {
+        setModuleInfo(null);
+        setModuleContent(null);
+        setErrorMessage("Khong tim thay module trong lo trinh cua ban.");
+        return;
+      }
+
+      const matchedModule = roadmapModules.find((module) => module.moduleId === resolvedModuleId);
+      setModuleInfo(matchedModule ?? null);
+
+      const modulePayload = await getUserModuleContent(auth.accessToken, resolvedModuleId);
+      setModuleContent(modulePayload.data ?? null);
+    } catch (error) {
+      setModuleInfo(null);
+      setModuleContent(null);
+      setErrorMessage(error instanceof Error ? error.message : "Khong the tai chi tiet module.");
+    } finally {
+      setLoading(false);
+    }
+  }, [auth.accessToken, selectedModuleId]);
+
+  useEffect(() => {
+    if (!isHydrated || !auth.accessToken) return;
+    loadModule();
+  }, [auth.accessToken, isHydrated, loadModule]);
+
+  const activeModuleId = moduleContent?.moduleId ?? moduleInfo?.moduleId;
+  const totalVideoLessons = moduleContent?.videoLessons?.length ?? 0;
+  const completedVideoLessons =
+    moduleContent?.videoLessons?.filter((lesson) => lesson.progressStatus === "COMPLETED").length ?? 0;
+  const allVideosCompleted = totalVideoLessons > 0 && completedVideoLessons === totalVideoLessons;
+  const canOpenVocab = allVideosCompleted;
+  const canOpenPractice = allVideosCompleted && vocabStepDone;
+  const canCompleteModule = allVideosCompleted && vocabStepDone && practiceStepDone;
+
+  useEffect(() => {
+    setVocabStepDone(false);
+    setPracticeStepDone(false);
+  }, [activeModuleId]);
+
+  const handleCompleteModule = async () => {
+    if (!auth.accessToken || !activeModuleId || unlocking) return;
+
+    try {
+      setUnlocking(true);
+      const response = await completeOrUnlockNextModule(auth.accessToken, activeModuleId, true);
+      await loadModule();
+
+      if (response.data?.nextModuleUnlocked && response.data?.nextModuleId) {
+        Alert.alert("Module", "Da mo module tiep theo.");
+        pushRoute(`/user/grammar?moduleId=${response.data.nextModuleId}`);
+        return;
+      }
+
+      if (response.data?.pathCompleted) {
+        Alert.alert("Module", "Ban da hoan thanh toan bo learning path hien tai.");
+        return;
+      }
+
+      Alert.alert("Module", "Da cap nhat trang thai module.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Khong the cap nhat module.";
+      Alert.alert("Module", message);
+    } finally {
+      setUnlocking(false);
+    }
+  };
+
   return (
     <UserScreen>
       <AppHeader
         leftIcon="chevron-back-outline"
         onLeftPress={() => router.back()}
-        rightSlot={
-          <View style={styles.rightIcons}>
-            <Pressable onPress={() => pushRoute("/user/notebook")} style={styles.topAction}>
-              <Ionicons color={colors.primaryDark} name="bookmark" size={20} />
-            </Pressable>
-            <Pressable onPress={() => pushRoute("/user/profile")} style={styles.topActionSoft}>
-              <Ionicons color="#E4A58C" name="pause" size={20} />
-            </Pressable>
-          </View>
-        }
-        subtitle="B1 • Intermediate"
-        title="Academic Concierge"
+        rightSlot={<Ionicons color={colors.primaryDark} name="person-circle" size={42} />}
+        subtitle={moduleContent?.moduleType ?? moduleInfo?.moduleType ?? "USER MODULE"}
+        title={moduleContent?.title ?? moduleInfo?.title ?? "Module detail"}
       />
 
-      <View style={styles.tag}>
-        <Text style={styles.tagText}>GRAMMAR FOCUS</Text>
-      </View>
-      <Text style={styles.title}>Cau bi dong (Passive Voice)</Text>
-      <Text style={styles.subtitle}>
-        Passive voice represents a focus on the action rather than the subject.
-        It is highly frequent in TOEIC Reading Part 5 and Part 6.
-      </Text>
-
-      <SurfaceCard style={styles.formulaCard}>
-        <Text style={styles.formulaBadge}>fx Cau truc (Formula)</Text>
-        <View style={styles.formulaBox}>
-          <Text style={styles.formulaText}>S + had + V3/ed + before + S + V2/ed</Text>
+      {loading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator color={colors.primaryDark} />
+          <Text style={styles.loadingText}>Dang tai noi dung module...</Text>
         </View>
-        <Text style={styles.formulaDesc}>
-          Su dung de dien ta mot hanh dong da hoan thanh truoc mot thoi diem hoac hanh
-          dong khac trong qua khu.
+      ) : null}
+
+      {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+
+      <SurfaceCard style={styles.summaryCard}>
+        <Text style={styles.summaryTitle}>Tong quan module</Text>
+        <Text style={styles.summaryDesc}>
+          {moduleContent?.description ?? moduleInfo?.description ?? "Chua co mo ta module."}
         </Text>
+
+        <View style={styles.summaryStats}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{moduleContent?.videoLessons.length ?? 0}</Text>
+            <Text style={styles.statLabel}>Videos</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{moduleContent?.flashcards.length ?? 0}</Text>
+            <Text style={styles.statLabel}>Vocab</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{moduleContent?.practiceSets.length ?? 0}</Text>
+            <Text style={styles.statLabel}>Practice</Text>
+          </View>
+        </View>
+
+        <ProgressBar
+          accentColor={colors.primary}
+          label="Tien do module"
+          rightLabel={`${Math.round(moduleInfo?.progressPercent ?? 0)}%`}
+          value={moduleInfo?.progressPercent ?? 0}
+        />
       </SurfaceCard>
 
-      <SurfaceCard style={styles.exampleCard}>
-        <View style={styles.exampleHeader}>
-          <Ionicons color={colors.text} name="bulb-outline" size={18} />
-          <Text style={styles.exampleTitle}>Vi du minh hoa</Text>
-        </View>
-
-        <View style={styles.exampleBubble}>
-          <Text style={styles.exampleSentence}>
-            &quot;The report <Text style={styles.highlight}>had been submitted</Text> by the
-            manager <Text style={styles.highlight}>before</Text> the deadline{" "}
-            <Text style={styles.highlight}>passed</Text>.&quot;
-          </Text>
-          <Text style={styles.exampleTranslation}>
-            Ban bao cao da duoc nop boi quan ly truoc khi han chot ket thuc.
-          </Text>
-        </View>
-
-        <View style={styles.exampleBubble}>
-          <Text style={styles.exampleSentence}>
-            &quot;All staff <Text style={styles.highlight}>had left</Text> the office{" "}
-            <Text style={styles.highlight}>before</Text> the power{" "}
-            <Text style={styles.highlight}>went out</Text>.&quot;
-          </Text>
-          <Text style={styles.exampleTranslation}>
-            Tat ca nhan vien da roi van phong truoc khi dien bi ngat.
-          </Text>
-        </View>
+      <SurfaceCard style={styles.listCard}>
+        <Text style={styles.listTitle}>Video lessons</Text>
+        {(moduleContent?.videoLessons ?? []).slice(0, 4).map((lesson) => (
+          <View key={lesson.lessonId} style={styles.listRow}>
+            <Ionicons color={colors.primaryDark} name="play-circle-outline" size={18} />
+            <View style={styles.listBody}>
+              <Text style={styles.listMain}>{lesson.lessonTitle}</Text>
+              <Text style={styles.listSub}>{lesson.durationSeconds}s - {lesson.progressStatus}</Text>
+            </View>
+          </View>
+        ))}
+        {(moduleContent?.videoLessons?.length ?? 0) === 0 ? (
+          <Text style={styles.emptyText}>Chua co video duoc publish.</Text>
+        ) : null}
       </SurfaceCard>
 
-      <SurfaceCard style={styles.noteCard}>
-        <View style={styles.noteIcon}>
-          <Ionicons color={colors.surface} name="warning" size={22} />
-        </View>
-        <View style={styles.noteBody}>
-          <Text style={styles.noteTitle}>Luu y quan trong (Note)</Text>
-          <Text style={styles.noteText}>
-            Trong de thi TOEIC, hay can than voi cac noi dong tu (intransitive
-            verbs) nhu happen, occur, rise, fall. Nhung tu nay khong bao gio duoc
-            chia o dang bi dong.
-          </Text>
-        </View>
+      <SurfaceCard style={styles.listCard}>
+        <Text style={styles.listTitle}>Vocabulary from admin</Text>
+        {(moduleContent?.flashcards ?? []).slice(0, 4).map((card) => (
+          <View key={card.id} style={styles.listRow}>
+            <Ionicons color={colors.primaryDark} name="book-outline" size={18} />
+            <View style={styles.listBody}>
+              <Text style={styles.listMain}>{card.englishWord}</Text>
+              <Text style={styles.listSub}>{card.meaningVi}</Text>
+            </View>
+          </View>
+        ))}
+        {(moduleContent?.flashcards?.length ?? 0) === 0 ? (
+          <Text style={styles.emptyText}>Chua co flashcard trong module.</Text>
+        ) : null}
       </SurfaceCard>
 
-      <SurfaceCard style={styles.progressCard}>
-        <View style={styles.progressRing}>
-          <Text style={styles.progressRingText}>75%</Text>
-        </View>
-        <View>
-          <Text style={styles.progressTitle}>Tien do bai hoc</Text>
-          <Text style={styles.progressSubtitle}>MASTERY LEVEL: SILVER</Text>
-          <Text style={styles.progressMeta}>Du kien hoan thanh: 5 phut</Text>
+      <SurfaceCard style={styles.listCard}>
+        <Text style={styles.listTitle}>Practice sets</Text>
+        {(moduleContent?.practiceSets ?? []).slice(0, 4).map((set) => (
+          <View key={set.id} style={styles.listRow}>
+            <Ionicons color={colors.primaryDark} name="document-text-outline" size={18} />
+            <View style={styles.listBody}>
+              <Text style={styles.listMain}>{set.title}</Text>
+              <Text style={styles.listSub}>{set.durationMinutes ?? "--"} phut - Part {set.partNo ?? "--"}</Text>
+            </View>
+          </View>
+        ))}
+        {(moduleContent?.practiceSets?.length ?? 0) === 0 ? (
+          <Text style={styles.emptyText}>Chua co de luyen tap duoc publish.</Text>
+        ) : null}
+      </SurfaceCard>
+
+      <SurfaceCard style={styles.listCard}>
+        <Text style={styles.listTitle}>Quy trinh hoan thanh module</Text>
+        <Text style={styles.flowText}>
+          1) Xem video: {completedVideoLessons}/{totalVideoLessons} bai{"\n"}
+          2) Luyen tu vung{"\n"}
+          3) Luyen de{"\n"}
+          4) Hoan thanh module
+        </Text>
+
+        <View style={styles.actionCol}>
+          <Pressable
+            onPress={() => {
+              if (activeModuleId) pushRoute(`/user/lesson?moduleId=${activeModuleId}`);
+            }}
+            style={styles.actionButton}
+          >
+            <Text style={styles.actionText}>Buoc 1: Hoc video</Text>
+          </Pressable>
+
+          <Pressable
+            disabled={!activeModuleId || !canOpenVocab}
+            onPress={() => {
+              if (activeModuleId) {
+                setVocabStepDone(true);
+                pushRoute(`/user/cards?moduleId=${activeModuleId}`);
+              }
+            }}
+            style={[styles.actionButtonSoft, !canOpenVocab ? styles.actionButtonDisabled : null]}
+          >
+            <Text style={styles.actionTextSoft}>Buoc 2: Luyen tu vung</Text>
+          </Pressable>
+
+          <Pressable
+            disabled={!activeModuleId || !canOpenPractice}
+            onPress={() => {
+              if (activeModuleId) {
+                setPracticeStepDone(true);
+                pushRoute(`/user/exam?moduleId=${activeModuleId}`);
+              }
+            }}
+            style={[styles.actionButtonSoft, !canOpenPractice ? styles.actionButtonDisabled : null]}
+          >
+            <Text style={styles.actionTextSoft}>Buoc 3: Luyen de</Text>
+          </Pressable>
+
+          <Pressable
+            disabled={!activeModuleId || unlocking || !canCompleteModule}
+            onPress={handleCompleteModule}
+            style={[
+              styles.actionButtonStrong,
+              unlocking || !canCompleteModule ? styles.actionButtonDisabled : null,
+            ]}
+          >
+            <Text style={styles.actionText}>
+              {unlocking ? "Dang cap nhat..." : "Buoc 4: Hoan thanh module nay"}
+            </Text>
+          </Pressable>
         </View>
       </SurfaceCard>
     </UserScreen>
@@ -106,181 +280,140 @@ export default function RoadmapScreen() {
 }
 
 const styles = StyleSheet.create({
-  exampleBubble: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    marginTop: spacing.md,
-    padding: spacing.lg,
-  },
-  exampleCard: {
-    marginBottom: spacing.xl,
-  },
-  exampleHeader: {
+  actionButton: {
     alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  exampleSentence: {
-    color: colors.text,
-    fontSize: 18,
-    fontStyle: "italic",
-    lineHeight: 34,
-    marginBottom: spacing.md,
-  },
-  exampleTitle: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: "800",
-  },
-  exampleTranslation: {
-    color: colors.text,
-    fontSize: 16,
-    fontStyle: "italic",
-    lineHeight: 28,
-  },
-  formulaBadge: {
-    color: colors.primaryDark,
-    fontSize: 18,
-    fontWeight: "700",
-    marginBottom: spacing.md,
-  },
-  formulaBox: {
-    backgroundColor: "rgba(255,255,255,0.72)",
-    borderColor: colors.primaryDark,
-    borderRadius: radius.lg,
-    borderWidth: 2,
-    marginBottom: spacing.lg,
-    padding: spacing.lg,
-  },
-  formulaCard: {
-    backgroundColor: "#AFC4FF",
-    marginBottom: spacing.xl,
-  },
-  formulaDesc: {
-    color: colors.primaryDark,
-    fontSize: 16,
-    lineHeight: 26,
-  },
-  formulaText: {
-    color: colors.primaryDark,
-    fontSize: 18,
-    fontWeight: "900",
-    textAlign: "center",
-  },
-  highlight: {
-    color: colors.primaryDark,
-    fontWeight: "900",
-  },
-  noteBody: {
-    flex: 1,
-  },
-  noteCard: {
-    backgroundColor: "#FFF0F0",
-    borderLeftColor: "#D32020",
-    borderLeftWidth: 6,
-    flexDirection: "row",
-    gap: spacing.md,
-    marginBottom: spacing.xl,
-  },
-  noteIcon: {
-    alignItems: "center",
-    backgroundColor: "#D32020",
-    borderRadius: radius.pill,
-    height: 42,
-    justifyContent: "center",
-    marginTop: 2,
-    width: 42,
-  },
-  noteText: {
-    color: "#9A1F1F",
-    fontSize: 16,
-    lineHeight: 28,
-  },
-  noteTitle: {
-    color: "#C52727",
-    fontSize: 18,
-    fontWeight: "900",
-    marginBottom: spacing.sm,
-  },
-  progressCard: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.md,
-  },
-  progressMeta: {
-    color: colors.text,
-    fontSize: 14,
-    marginTop: spacing.md,
-  },
-  progressRing: {
-    alignItems: "center",
-    borderColor: "#47D764",
-    borderRadius: radius.pill,
-    borderTopColor: "#CDE7D1",
-    borderWidth: 6,
-    height: 72,
-    justifyContent: "center",
-    width: 72,
-  },
-  progressRingText: {
-    color: "#1A7C2B",
-    fontSize: 16,
-    fontWeight: "900",
-  },
-  progressSubtitle: {
-    color: colors.textMuted,
-    fontSize: 12,
-    letterSpacing: 1.2,
-    marginTop: 4,
-  },
-  progressTitle: {
-    color: colors.text,
-    fontSize: 20,
-    fontWeight: "800",
-  },
-  rightIcons: {
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  subtitle: {
-    color: colors.text,
-    fontSize: 16,
-    lineHeight: 28,
-    marginBottom: spacing.xl,
-  },
-  tag: {
-    alignSelf: "flex-start",
     backgroundColor: colors.primary,
     borderRadius: radius.pill,
+    flex: 1,
+    paddingVertical: 14,
+  },
+  actionButtonDisabled: {
+    opacity: 0.7,
+  },
+  actionButtonSoft: {
+    alignItems: "center",
+    backgroundColor: "#E9EDFA",
+    borderRadius: radius.pill,
+    flex: 1,
+    paddingVertical: 14,
+  },
+  actionButtonStrong: {
+    alignItems: "center",
+    backgroundColor: "#24963F",
+    borderRadius: radius.pill,
+    flex: 1,
+    paddingVertical: 14,
+  },
+  actionRow: {
+    flexDirection: "row",
+    gap: spacing.md,
+    marginBottom: spacing.xl,
+  },
+  actionCol: {
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  actionText: {
+    color: colors.surface,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  actionTextSoft: {
+    color: colors.primaryDark,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  emptyText: {
+    color: colors.textMuted,
+    fontSize: 14,
+    marginTop: spacing.sm,
+  },
+  errorText: {
+    backgroundColor: "rgba(249,112,102,0.1)",
+    borderColor: "rgba(249,112,102,0.24)",
+    borderRadius: 8,
+    borderWidth: 1,
+    color: colors.danger,
+    fontSize: 13,
     marginBottom: spacing.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
   },
-  tagText: {
-    color: colors.surface,
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: 0.8,
+  listBody: {
+    flex: 1,
   },
-  title: {
-    color: colors.primaryDark,
-    fontSize: 30,
-    fontWeight: "900",
-    lineHeight: 38,
+  listCard: {
     marginBottom: spacing.lg,
   },
-  topAction: {
-    alignItems: "center",
-    height: 40,
-    justifyContent: "center",
-    width: 40,
+  listMain: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "700",
   },
-  topActionSoft: {
+  listRow: {
     alignItems: "center",
-    backgroundColor: "#FCE0D0",
-    borderRadius: radius.pill,
-    height: 40,
-    justifyContent: "center",
-    width: 40,
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  listSub: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  listTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  flowText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 20,
+    marginTop: spacing.sm,
+  },
+  loadingText: {
+    color: colors.textMuted,
+    fontSize: 14,
+  },
+  loadingWrap: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  statItem: {
+    alignItems: "center",
+    flex: 1,
+  },
+  statLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    marginTop: 2,
+    textTransform: "uppercase",
+  },
+  statValue: {
+    color: colors.primaryDark,
+    fontSize: 28,
+    fontWeight: "900",
+  },
+  summaryCard: {
+    marginBottom: spacing.lg,
+  },
+  summaryDesc: {
+    color: colors.text,
+    fontSize: 15,
+    lineHeight: 24,
+    marginTop: spacing.sm,
+  },
+  summaryStats: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginVertical: spacing.lg,
+  },
+  summaryTitle: {
+    color: colors.primaryDark,
+    fontSize: 22,
+    fontWeight: "900",
   },
 });

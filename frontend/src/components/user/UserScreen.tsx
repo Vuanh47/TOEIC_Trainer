@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { ScrollView, StyleSheet, View, ViewStyle } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { spacing } from "@/src/assets/styles/theme";
+import { colors, radius, spacing } from "@/src/assets/styles/user-theme";
 
 type UserScreenProps = {
   children: ReactNode;
@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
   },
   glowBottom: {
-    backgroundColor: "rgba(78, 227, 109, 0.08)",
+    backgroundColor: "rgba(44, 185, 167, 0.16)",
     borderRadius: 220,
     bottom: 120,
     height: 240,
@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
     width: 240,
   },
   glowTop: {
-    backgroundColor: "rgba(36,87,166,0.08)",
+    backgroundColor: "rgba(75, 123, 229, 0.16)",
     borderRadius: 260,
     height: 260,
     left: -110,
@@ -63,8 +63,10 @@ const styles = StyleSheet.create({
     width: 260,
   },
   mesh: {
-    backgroundColor: "rgba(255,255,255,0.55)",
-    borderRadius: 40,
+    backgroundColor: "rgba(255,255,255,0.72)",
+    borderColor: colors.border,
+    borderRadius: radius.xl,
+    borderWidth: 1,
     bottom: 60,
     left: 12,
     position: "absolute",
@@ -72,7 +74,7 @@ const styles = StyleSheet.create({
     top: 12,
   },
   safeArea: {
-    backgroundColor: "#F7F7FD",
+    backgroundColor: colors.background,
     flex: 1,
   },
   scrollContent: {
