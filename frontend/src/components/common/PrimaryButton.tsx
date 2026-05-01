@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.99 }],
   },
   glow: {
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: 'rgba(255,255,255,0.18)',
     borderRadius: radius.pill,
     height: 24,
     left: 18,
@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
     top: 10,
   },
   label: {
-    color: colors.surface,
+    color: '#F7FBFF',
     fontSize: 17,
     fontWeight: '800',
     letterSpacing: 0.6,

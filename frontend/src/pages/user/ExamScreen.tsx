@@ -3,7 +3,7 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, radius, spacing } from "@/src/assets/styles/theme";
+import { colors, radius, spacing } from "@/src/assets/styles/user-theme";
 import SurfaceCard from "@/src/components/user/SurfaceCard";
 import UserScreen from "@/src/components/user/UserScreen";
 import { examQuestion } from "@/src/pages/user/mock-data";

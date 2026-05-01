@@ -15,6 +15,7 @@ export const goalPlans: GoalPlan[] = [
     id: "goal-300",
     level: "Cap do 1",
     subtitle: "Hanh trinh bat dau tu day",
+    targetScore: 300,
     title: "Muc tieu 300+",
   },
   {
@@ -24,6 +25,7 @@ export const goalPlans: GoalPlan[] = [
     id: "goal-500",
     level: "Cap do 2",
     subtitle: "Danh cho ban da co nen tang",
+    targetScore: 500,
     title: "Muc tieu 500+",
   },
   {
@@ -32,6 +34,7 @@ export const goalPlans: GoalPlan[] = [
     id: "goal-800",
     level: "Cap do 3",
     subtitle: "Tong on tang toc de ve dich",
+    targetScore: 800,
     title: "Muc tieu 800+",
   },
 ];

@@ -75,7 +75,6 @@ export type PracticeSetApiItem = {
 
 export type VideoLessonApiItem = {
   id: number;
-  courseId: number | null;
   moduleId: number | null;
   title: string;
   description: string | null;
@@ -86,6 +85,16 @@ export type VideoLessonApiItem = {
   published: boolean;
   createdAt: string;
   updatedAt: string;
+};
+
+export type VideoUploadApiItem = {
+  publicId: string | null;
+  resourceType: string | null;
+  format: string | null;
+  secureUrl: string | null;
+  playbackUrl: string | null;
+  durationSeconds: number | null;
+  bytes: number | null;
 };
 
 export type QuestionOptionApiItem = {
@@ -196,7 +205,6 @@ export type UpdateAdminFlashcardRequest = {
 };
 
 export type CreateVideoLessonRequest = {
-  courseId?: number | null;
   description?: string | null;
   durationSeconds: number;
   free?: boolean;
@@ -208,7 +216,6 @@ export type CreateVideoLessonRequest = {
 };
 
 export type UpdateVideoLessonRequest = {
-  courseId?: number | null;
   description?: string | null;
   durationSeconds?: number;
   free?: boolean;
@@ -280,6 +287,7 @@ export type LearningModuleListResponse = ApiResponse<LearningModuleApiItem[]>;
 export type FlashcardListResponse = ApiResponse<AdminFlashcardApiItem[]>;
 export type PracticeSetListResponse = ApiResponse<PracticeSetApiItem[]>;
 export type VideoLessonListResponse = ApiResponse<VideoLessonApiItem[]>;
+export type VideoUploadResponse = ApiResponse<VideoUploadApiItem>;
 export type QuestionListResponse = ApiResponse<QuestionApiItem[]>;
 export type PracticeSetQuestionListResponse = ApiResponse<PracticeSetQuestionApiItem[]>;
 

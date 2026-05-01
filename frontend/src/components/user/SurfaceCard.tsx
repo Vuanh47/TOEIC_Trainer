@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 
-import { colors, radius, spacing } from "@/src/assets/styles/theme";
+import { colors, radius, spacing } from "@/src/assets/styles/user-theme";
 
 export default function SurfaceCard({
   children,
@@ -15,14 +15,14 @@ export default function SurfaceCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "rgba(255,255,255,0.92)",
-    borderColor: "rgba(255,255,255,0.7)",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
     borderRadius: radius.lg,
     borderWidth: 1,
     padding: spacing.lg,
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.1,
-    shadowRadius: 28,
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.16,
+    shadowRadius: 20,
   },
 });

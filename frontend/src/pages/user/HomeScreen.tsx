@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, radius, spacing } from "@/src/assets/styles/theme";
+import { colors, radius, spacing } from "@/src/assets/styles/user-theme";
 import AppHeader, { AvatarBadge } from "@/src/components/user/AppHeader";
 import ProgressBar from "@/src/components/user/ProgressBar";
 import SectionTitle from "@/src/components/user/SectionTitle";

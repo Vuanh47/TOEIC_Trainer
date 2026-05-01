@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, radius, spacing } from "@/src/assets/styles/theme";
+import { colors, radius, spacing } from "@/src/assets/styles/user-theme";
 
 type AppHeaderProps = {
   title: string;
@@ -46,8 +46,10 @@ export function AvatarBadge({ label = "A" }: { label?: string }) {
 const styles = StyleSheet.create({
   avatar: {
     alignItems: "center",
-    backgroundColor: "#0F1E45",
+    backgroundColor: colors.primaryDark,
+    borderColor: colors.borderStrong,
     borderRadius: radius.pill,
+    borderWidth: 1,
     height: 46,
     justifyContent: "center",
     width: 46,
@@ -76,7 +78,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   subtitle: {
-    color: "#2E8B39",
+    color: colors.success,
     fontSize: 12,
     fontWeight: "800",
     letterSpacing: 1.2,

@@ -17,6 +17,7 @@ import TextField, { FieldIconButton } from "@/src/components/common/TextField";
 import { API_BASE_URL } from "@/src/config/env";
 import { useAuth } from "@/src/hooks/use-auth";
 import AuthLayout from "@/src/layouts/AuthLayout";
+import { ApiError } from "@/src/services/api.client";
 import { login } from "@/src/services/auth.service";
 import { formatExpiry } from "@/src/utils/format";
 
@@ -62,10 +63,22 @@ export default function LoginScreen() {
       signIn(payload.data);
       router.replace("/user/home");
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Khong the dang nhap.";
-      console.log("[auth] login error", error);
-      setErrorMessage(message);
+      if (error instanceof ApiError) {
+        const raw = error.message.trim().toLowerCase();
+        if (
+          raw === "login failed" ||
+          raw.includes("bad credentials") ||
+          raw.includes("invalid")
+        ) {
+          setErrorMessage("Sai email hoac mat khau.");
+        } else {
+          setErrorMessage(error.message);
+        }
+      } else if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Khong the dang nhap.");
+      }
     } finally {
       setLoading(false);
     }
@@ -108,6 +121,7 @@ export default function LoginScreen() {
             }
             onChangeText={setEmail}
             placeholder="Nhap email cua ban"
+            variant="light"
             value={email}
           />
 
@@ -136,6 +150,7 @@ export default function LoginScreen() {
               </FieldIconButton>
             }
             secureTextEntry={!showPassword}
+            variant="light"
             value={password}
           />
 
@@ -192,26 +207,26 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   brandBadge: {
-    backgroundColor: colors.accentSoft,
+    backgroundColor: '#DCE8FB',
     borderRadius: radius.pill,
     marginBottom: spacing.md,
     paddingHorizontal: spacing.md,
     paddingVertical: 8,
   },
   brandText: {
-    color: colors.primaryDark,
+    color: '#274A83',
     fontSize: 14,
     fontWeight: "900",
     letterSpacing: 0.8,
   },
   debugText: {
-    color: colors.textMuted,
+    color: '#8A9CB6',
     fontSize: 12,
     marginBottom: spacing.md,
     textAlign: "center",
   },
   errorText: {
-    color: colors.danger,
+    color: '#C0392B',
     fontSize: 14,
     marginBottom: spacing.md,
     textAlign: "center",
@@ -223,7 +238,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   linkText: {
-    color: colors.primaryDark,
+    color: '#355D9A',
     fontSize: 14,
     fontWeight: "700",
   },
@@ -233,8 +248,8 @@ const styles = StyleSheet.create({
   },
   logoCircle: {
     alignItems: "center",
-    backgroundColor: colors.primarySoft,
-    borderColor: "rgba(255,255,255,0.75)",
+    backgroundColor: '#2A4675',
+    borderColor: "#E6EDF9",
     borderRadius: radius.pill,
     borderWidth: 8,
     height: 132,
@@ -242,7 +257,7 @@ const styles = StyleSheet.create({
     width: 132,
   },
   logoHalo: {
-    backgroundColor: "rgba(255,182,72,0.18)",
+    backgroundColor: "rgba(219, 201, 171, 0.35)",
     borderRadius: radius.pill,
     height: 170,
     position: "absolute",
@@ -255,11 +270,11 @@ const styles = StyleSheet.create({
     minHeight: 170,
   },
   registerHighlight: {
-    color: colors.primaryDark,
+    color: '#2E5DA3',
     fontWeight: "800",
   },
   registerText: {
-    color: colors.text,
+    color: '#5B6C86',
     fontSize: 15,
   },
   registerWrap: {
@@ -267,7 +282,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   subtitle: {
-    color: colors.textMuted,
+    color: '#6D7F98',
     fontSize: 15,
     lineHeight: 22,
     textAlign: "center",

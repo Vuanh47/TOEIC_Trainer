@@ -124,6 +124,7 @@ export default function RegisterScreen() {
             }
             onChangeText={(value) => updateField("fullName", value)}
             placeholder="Nhap ho ten cua ban"
+            variant="light"
             value={form.fullName}
           />
 
@@ -141,6 +142,7 @@ export default function RegisterScreen() {
             }
             onChangeText={(value) => updateField("email", value)}
             placeholder="Nhap email dang ky"
+            variant="light"
             value={form.email}
           />
 
@@ -169,6 +171,7 @@ export default function RegisterScreen() {
               </FieldIconButton>
             }
             secureTextEntry={!showPassword}
+            variant="light"
             value={form.password}
           />
 
@@ -218,6 +221,7 @@ export default function RegisterScreen() {
               )
             }
             placeholder="Nhap muc diem mong muon"
+            variant="light"
             value={form.targetScore ? String(form.targetScore) : ""}
           />
 
@@ -246,7 +250,7 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   brandIcon: {
     alignItems: "center",
-    backgroundColor: colors.accentSoft,
+    backgroundColor: '#DCE8FB',
     borderRadius: radius.pill,
     height: 28,
     justifyContent: "center",
@@ -259,13 +263,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   brandText: {
-    color: colors.primaryDark,
+    color: '#274A83',
     fontSize: 15,
     fontWeight: "900",
     letterSpacing: 0.6,
   },
   errorText: {
-    color: colors.danger,
+    color: '#C0392B',
     fontSize: 14,
     marginBottom: spacing.md,
     textAlign: "center",
@@ -274,13 +278,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   fieldLabel: {
-    color: colors.text,
+    color: '#43546F',
     fontSize: 15,
     fontWeight: "700",
     marginBottom: spacing.xs,
   },
   footerHighlight: {
-    color: colors.primaryDark,
+    color: '#2E5DA3',
     fontWeight: "800",
   },
   footerLink: {
@@ -288,7 +292,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   footerText: {
-    color: colors.text,
+    color: '#5B6C86',
     fontSize: 15,
   },
   form: {
@@ -299,16 +303,16 @@ const styles = StyleSheet.create({
   },
   levelChip: {
     alignItems: "center",
-    backgroundColor: colors.surfaceAlt,
-    borderColor: colors.border,
+    backgroundColor: '#F4F8FF',
+    borderColor: '#D7E2F2',
     borderRadius: radius.pill,
     borderWidth: 1,
     minHeight: 44,
     paddingHorizontal: spacing.md,
   },
   levelChipActive: {
-    backgroundColor: colors.primaryDark,
-    borderColor: colors.primaryDark,
+    backgroundColor: '#2E5DA3',
+    borderColor: '#2E5DA3',
   },
   levelGrid: {
     flexDirection: "row",
@@ -316,16 +320,16 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   levelText: {
-    color: colors.text,
+    color: '#36527D',
     fontSize: 13,
     fontWeight: "800",
     lineHeight: 22,
   },
   levelTextActive: {
-    color: colors.surface,
+    color: '#F8FBFF',
   },
   subtitle: {
-    color: colors.textMuted,
+    color: '#6D7F98',
     fontSize: 15,
     lineHeight: 22,
     textAlign: "center",

@@ -108,12 +108,13 @@ export async function apiRequest<T>(
 
     return payload as T;
   } catch (error) {
-    // Log error details
-    // eslint-disable-next-line no-console
-    console.error('[apiRequest] error', { url: requestUrl, error });
     if (error instanceof ApiError) {
       throw error;
     }
+
+    // Log unexpected runtime/network errors only.
+    // eslint-disable-next-line no-console
+    console.error('[apiRequest] error', { url: requestUrl, error });
 
     throw createNetworkError(error, requestUrl);
   }
