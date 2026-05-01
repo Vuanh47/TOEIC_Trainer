@@ -19,6 +19,7 @@ import AdminSidebar from "@/src/components/admin/AdminSidebar";
 import AdminTopBar from "@/src/components/admin/AdminTopBar";
 import { useAuth } from "@/src/hooks/use-auth";
 import { adminSidebarItems } from "@/src/pages/admin/dashboard/mock-data";
+import { logout } from "@/src/services/auth.service";
 import {
   AdminFlashcardService,
   AdminLearningModuleService,
@@ -246,7 +247,7 @@ const practiceSetQuestionFields: AdminField[] = [
 ];
 
 export default function AdminDashboardScreen() {
-  const { auth, isHydrated } = useAuth();
+  const { auth, isHydrated, signOut } = useAuth();
   const [activeSection, setActiveSection] = useState<AdminSectionKey>("paths");
   const [paths, setPaths] = useState<LearningPathApiItem[]>([]);
   const [milestones, setMilestones] = useState<LearningPathMilestoneApiItem[]>(
@@ -273,6 +274,7 @@ export default function AdminDashboardScreen() {
     number | null
   >(null);
   const [loading, setLoading] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [working, setWorking] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -315,6 +317,20 @@ export default function AdminDashboardScreen() {
       error instanceof Error ? error.message : "Khong the xu ly yeu cau.",
     );
   }, []);
+
+  const handleLogout = useCallback(async () => {
+    if (!auth.accessToken || isLoggingOut) return;
+
+    try {
+      setIsLoggingOut(true);
+      await logout(auth.accessToken, auth.tokenType ?? "Bearer");
+    } catch {
+      // Best-effort API logout. Local session still needs to be cleared.
+    } finally {
+      signOut();
+      setIsLoggingOut(false);
+    }
+  }, [auth.accessToken, auth.tokenType, isLoggingOut, signOut]);
 
   const loadBaseData = useCallback(async () => {
     if (!services) return;
@@ -1315,7 +1331,11 @@ export default function AdminDashboardScreen() {
 
   return (
     <AdminShell>
-      <AdminTopBar adminName={auth.user?.fullName ?? "Admin"} />
+      <AdminTopBar
+        adminName={auth.user?.fullName ?? "Admin"}
+        isLoggingOut={isLoggingOut}
+        onLogout={handleLogout}
+      />
       <View style={styles.layout}>
         <AdminSidebar
           activeItemId={activeSection}

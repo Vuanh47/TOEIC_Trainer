@@ -1,13 +1,19 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { colors, radius, spacing } from '@/src/assets/styles/theme';
 
 type AdminTopBarProps = {
   adminName: string;
+  isLoggingOut?: boolean;
+  onLogout: () => void;
 };
 
-export default function AdminTopBar({ adminName }: AdminTopBarProps) {
+export default function AdminTopBar({
+  adminName,
+  isLoggingOut = false,
+  onLogout,
+}: AdminTopBarProps) {
   return (
     <View style={styles.bar}>
       <View style={styles.brandRow}>
@@ -29,7 +35,20 @@ export default function AdminTopBar({ adminName }: AdminTopBarProps) {
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>{adminName.charAt(0)}</Text>
         </View>
-        <Ionicons color={colors.textMuted} name="chevron-down" size={18} />
+        <Pressable
+          disabled={isLoggingOut}
+          onPress={onLogout}
+          style={({ pressed }) => [
+            styles.logoutButton,
+            pressed ? styles.logoutButtonPressed : null,
+            isLoggingOut ? styles.logoutButtonDisabled : null,
+          ]}
+        >
+          <Ionicons color="#FCA5A5" name="log-out-outline" size={15} />
+          <Text style={styles.logoutText}>
+            {isLoggingOut ? 'Dang xuat...' : 'Dang xuat'}
+          </Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -129,5 +148,28 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
     height: 26,
     width: 1,
+  },
+  logoutButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(127,29,29,0.35)',
+    borderColor: '#B91C1C',
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  logoutButtonDisabled: {
+    opacity: 0.7,
+  },
+  logoutButtonPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
+  },
+  logoutText: {
+    color: '#FCA5A5',
+    fontSize: 12,
+    fontWeight: '800',
   },
 });
