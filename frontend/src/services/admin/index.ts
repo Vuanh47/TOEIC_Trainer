@@ -1,0 +1,9 @@
+export { AdminFlashcardService } from '@/src/services/admin/admin-flashcard.service';
+export { AdminLearningModuleService } from '@/src/services/admin/admin-learning-module.service';
+export { AdminLearningPathMilestoneService } from '@/src/services/admin/admin-learning-path-milestone.service';
+export { AdminLearningPathService } from '@/src/services/admin/admin-learning-path.service';
+export { AdminMilestoneModuleService } from '@/src/services/admin/admin-milestone-module.service';
+export { AdminPracticeSetService } from '@/src/services/admin/admin-practice-set.service';
+export { AdminVideoLessonService } from '@/src/services/admin/admin-video-lesson.service';
+export { AdminQuestionService } from '@/src/services/admin/admin-question.service';
+export { AdminPermissionService } from '@/src/services/admin/admin-permission.service';
