@@ -9,6 +9,7 @@ import ProgressBar from "@/src/components/user/ProgressBar";
 import SurfaceCard from "@/src/components/user/SurfaceCard";
 import UserScreen from "@/src/components/user/UserScreen";
 import { useAuth } from "@/src/hooks/use-auth";
+import { vocabProgressStore } from "@/src/store/progress-store";
 import {
   completeOrUnlockNextModule,
   getUserModuleContent,
@@ -19,14 +20,13 @@ import { pushRoute } from "@/src/utils/navigation";
 
 export default function RoadmapScreen() {
   const { auth, isHydrated } = useAuth();
-  const params = useLocalSearchParams<{ moduleId?: string }>();
+  const params = useLocalSearchParams<{ moduleId?: string; vocabDone?: string; focus?: string }>();
 
   const [loading, setLoading] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [moduleInfo, setModuleInfo] = useState<UserRoadmapModuleItem | null>(null);
   const [moduleContent, setModuleContent] = useState<UserModuleContent | null>(null);
-  const [vocabStepDone, setVocabStepDone] = useState(false);
   const [practiceStepDone, setPracticeStepDone] = useState(false);
 
   const selectedModuleId = useMemo(() => {
@@ -83,14 +83,23 @@ export default function RoadmapScreen() {
   const completedVideoLessons =
     moduleContent?.videoLessons?.filter((lesson) => lesson.progressStatus === "COMPLETED").length ?? 0;
   const allVideosCompleted = totalVideoLessons > 0 && completedVideoLessons === totalVideoLessons;
+  const vocabStepDone =
+    (typeof activeModuleId === "number" && vocabProgressStore.isCompleted(activeModuleId)) ||
+    params.vocabDone === "true";
   const canOpenVocab = allVideosCompleted;
   const canOpenPractice = allVideosCompleted && vocabStepDone;
   const canCompleteModule = allVideosCompleted && vocabStepDone && practiceStepDone;
+  const shouldHighlightPractice = params.focus === "practice" && canOpenPractice;
 
   useEffect(() => {
-    setVocabStepDone(false);
     setPracticeStepDone(false);
   }, [activeModuleId]);
+
+  useEffect(() => {
+    if (params.vocabDone === "true" && typeof activeModuleId === "number") {
+      vocabProgressStore.markCompleted(activeModuleId);
+    }
+  }, [activeModuleId, params.vocabDone]);
 
   const handleCompleteModule = async () => {
     if (!auth.accessToken || !activeModuleId || unlocking) return;
@@ -138,6 +147,22 @@ export default function RoadmapScreen() {
       ) : null}
 
       {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+
+      {shouldHighlightPractice ? (
+        <SurfaceCard style={styles.successCard}>
+          <View style={styles.successRow}>
+            <View style={styles.successIcon}>
+              <Ionicons color={colors.surface} name="checkmark" size={18} />
+            </View>
+            <View style={styles.successBody}>
+              <Text style={styles.successTitle}>Da hoan thanh flashcard</Text>
+              <Text style={styles.successText}>
+                Buoc 2 da xong. Ban co the bat dau luyen de ngay bay gio.
+              </Text>
+            </View>
+          </View>
+        </SurfaceCard>
+      ) : null}
 
       <SurfaceCard style={styles.summaryCard}>
         <Text style={styles.summaryTitle}>Tong quan module</Text>
@@ -203,13 +228,22 @@ export default function RoadmapScreen() {
       <SurfaceCard style={styles.listCard}>
         <Text style={styles.listTitle}>Practice sets</Text>
         {(moduleContent?.practiceSets ?? []).slice(0, 4).map((set) => (
-          <View key={set.id} style={styles.listRow}>
+          <Pressable
+            key={set.id}
+            disabled={!canOpenPractice}
+            onPress={() => {
+              setPracticeStepDone(true);
+              pushRoute(`/user/practice-module?moduleId=${activeModuleId}`);
+            }}
+            style={[styles.listRow, !canOpenPractice ? styles.disabledRow : null]}
+          >
             <Ionicons color={colors.primaryDark} name="document-text-outline" size={18} />
             <View style={styles.listBody}>
               <Text style={styles.listMain}>{set.title}</Text>
               <Text style={styles.listSub}>{set.durationMinutes ?? "--"} phut - Part {set.partNo ?? "--"}</Text>
             </View>
-          </View>
+            <Ionicons color={colors.textMuted} name="chevron-forward" size={18} />
+          </Pressable>
         ))}
         {(moduleContent?.practiceSets?.length ?? 0) === 0 ? (
           <Text style={styles.emptyText}>Chua co de luyen tap duoc publish.</Text>
@@ -239,13 +273,15 @@ export default function RoadmapScreen() {
             disabled={!activeModuleId || !canOpenVocab}
             onPress={() => {
               if (activeModuleId) {
-                setVocabStepDone(true);
                 pushRoute(`/user/cards?moduleId=${activeModuleId}`);
               }
             }}
-            style={[styles.actionButtonSoft, !canOpenVocab ? styles.actionButtonDisabled : null]}
+            style={[
+              vocabStepDone ? styles.actionButtonDone : styles.actionButtonSoft,
+              !canOpenVocab ? styles.actionButtonDisabled : null,
+            ]}
           >
-            <Text style={styles.actionTextSoft}>Buoc 2: Luyen tu vung</Text>
+            <Text style={vocabStepDone ? styles.actionText : styles.actionTextSoft}>Buoc 2: Luyen tu vung</Text>
           </Pressable>
 
           <Pressable
@@ -253,12 +289,15 @@ export default function RoadmapScreen() {
             onPress={() => {
               if (activeModuleId) {
                 setPracticeStepDone(true);
-                pushRoute(`/user/exam?moduleId=${activeModuleId}`);
+                pushRoute(`/user/practice-module?moduleId=${activeModuleId}`);
               }
             }}
-            style={[styles.actionButtonSoft, !canOpenPractice ? styles.actionButtonDisabled : null]}
+            style={[
+              shouldHighlightPractice ? styles.actionButton : styles.actionButtonSoft,
+              !canOpenPractice ? styles.actionButtonDisabled : null,
+            ]}
           >
-            <Text style={styles.actionTextSoft}>Buoc 3: Luyen de</Text>
+            <Text style={shouldHighlightPractice ? styles.actionText : styles.actionTextSoft}>Buoc 3: Luyen de</Text>
           </Pressable>
 
           <Pressable
@@ -297,6 +336,13 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
   },
+  actionButtonDone: {
+    alignItems: "center",
+    backgroundColor: "#24963F",
+    borderRadius: radius.pill,
+    flex: 1,
+    paddingVertical: 14,
+  },
   actionButtonStrong: {
     alignItems: "center",
     backgroundColor: "#24963F",
@@ -327,6 +373,9 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 14,
     marginTop: spacing.sm,
+  },
+  disabledRow: {
+    opacity: 0.55,
   },
   errorText: {
     backgroundColor: "rgba(249,112,102,0.1)",
@@ -381,6 +430,38 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.sm,
     marginBottom: spacing.lg,
+  },
+  successBody: {
+    flex: 1,
+  },
+  successCard: {
+    backgroundColor: "#E8F8EE",
+    borderColor: "#BDE2C7",
+    marginBottom: spacing.lg,
+  },
+  successIcon: {
+    alignItems: "center",
+    backgroundColor: "#24963F",
+    borderRadius: radius.pill,
+    height: 34,
+    justifyContent: "center",
+    width: 34,
+  },
+  successRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  successText: {
+    color: "#31543B",
+    fontSize: 13,
+    lineHeight: 20,
+    marginTop: 2,
+  },
+  successTitle: {
+    color: "#113A1A",
+    fontSize: 15,
+    fontWeight: "900",
   },
   statItem: {
     alignItems: "center",

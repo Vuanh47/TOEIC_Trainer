@@ -29,7 +29,9 @@ import {
   getMyFlashcards,
   updateMyFlashcard,
 } from "@/src/services/user.service";
+import { replaceRoute } from "@/src/utils/navigation";
 import { FlashcardApiItem, FlashcardCollectionApiItem } from "@/src/types/user-api";
+import { vocabProgressStore } from "@/src/store/progress-store";
 
 type ExpoSpeechModule = {
   speak: (text: string, options?: Record<string, unknown>) => void;
@@ -354,6 +356,12 @@ export default function CardsScreen() {
     }
   };
 
+  const handleFinishLessonCards = () => {
+    if (!selectedModuleId) return;
+    vocabProgressStore.markCompleted(selectedModuleId);
+    replaceRoute(`/user/roadmap?moduleId=${selectedModuleId}&vocabDone=true&focus=practice`);
+  };
+
   return (
     <UserScreen>
       <AppHeader
@@ -556,10 +564,16 @@ export default function CardsScreen() {
           disabled={currentCards.length === 0}
           onPress={() => {
             setShowMeaning(false);
-            setCardIndex((v) => (v + 1) % currentCards.length);
+            if (mode === "lesson" && cardIndex === currentCards.length - 1 && selectedModuleId) {
+              handleFinishLessonCards();
+            } else {
+              setCardIndex((v) => (v + 1) % currentCards.length);
+            }
           }}
         >
-          <Text style={styles.primaryBtnText}>Next</Text>
+          <Text style={styles.primaryBtnText}>
+            {mode === "lesson" && cardIndex === currentCards.length - 1 && currentCards.length > 0 ? "Hoàn thành & Quay lại" : "Next"}
+          </Text>
         </Pressable>
         {mode === "mine" ? (
           <Pressable style={styles.ghostDangerBtn} disabled={working || !currentCard} onPress={handleDeleteCurrentCard}>
