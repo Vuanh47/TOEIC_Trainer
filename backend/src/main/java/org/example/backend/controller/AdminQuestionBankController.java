@@ -44,6 +44,16 @@ public class AdminQuestionBankController {
         return ApiResponseUtil.success(response, SuccessCode.QUESTION_LISTED);
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @GetMapping("/parts/{partNo}")
+    public ResponseEntity<ApiResponse<List<QuestionResponse>>> getQuestionsByPart(
+            @PathVariable Integer partNo,
+            @RequestParam(value = "keyword", required = false) String keyword
+    ) {
+        List<QuestionResponse> response = adminQuestionBankService.getQuestionsByPart(partNo, keyword);
+        return ApiResponseUtil.success(response, SuccessCode.QUESTION_LISTED);
+    }
+
     @GetMapping("/{questionId}")
     public ResponseEntity<ApiResponse<QuestionResponse>> getQuestionById(@PathVariable Long questionId) {
         QuestionResponse response = adminQuestionBankService.getQuestionById(questionId);

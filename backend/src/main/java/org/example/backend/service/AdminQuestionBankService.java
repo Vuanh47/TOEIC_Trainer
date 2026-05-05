@@ -59,6 +59,22 @@ public class AdminQuestionBankService {
     }
 
     @Transactional(readOnly = true)
+    public List<QuestionResponse> getQuestionsByPart(Integer partNo, String keyword) {
+        if (partNo == null || partNo <= 0 || partNo > 7) {
+            throw new AppException(ErrorCode.INVALID_QUESTION_DATA);
+        }
+        
+        List<Question> questions;
+        String normalized = trimToNull(keyword);
+        if (normalized == null) {
+            questions = questionRepository.findByPartNoOrderByCreatedAtDesc(partNo);
+        } else {
+            questions = questionRepository.findByPartNoAndQuestionTextContainingIgnoreCaseOrderByCreatedAtDesc(partNo, normalized);
+        }
+        return questionMapper.toResponseList(questions);
+    }
+
+    @Transactional(readOnly = true)
     public QuestionResponse getQuestionById(Long questionId) {
         return questionMapper.toResponse(findQuestion(questionId));
     }

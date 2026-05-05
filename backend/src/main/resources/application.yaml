@@ -57,3 +57,8 @@ cloudinary:
   api-key: ${CLOUDINARY_API_KEY:}
   api-secret: ${CLOUDINARY_API_SECRET:}
   upload-folder: toeic-trainer/videos
+
+openai:
+  api-key: ${OPENROUTER_API_KEY:}
+  base-url: https://openrouter.ai/api/v1/chat/completions
+  model: google/gemma-3-4b-it:free
