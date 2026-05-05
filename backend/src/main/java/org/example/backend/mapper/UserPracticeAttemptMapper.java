@@ -8,6 +8,9 @@ import java.util.List;
 public interface UserPracticeAttemptMapper {
     @Mapping(target = "userId", source = "user.id")
     @Mapping(target = "practiceSetId", source = "practiceSet.id")
+    @Mapping(target = "practiceSetTitle", source = "practiceSet.title")
+    @Mapping(target = "moduleId", source = "practiceSet.module.id")
+    @Mapping(target = "moduleTitle", source = "practiceSet.module.title")
     UserPracticeAttemptResponse toResponse(UserPracticeAttempt entity);
     List<UserPracticeAttemptResponse> toResponseList(List<UserPracticeAttempt> entities);
 }

@@ -10,6 +10,9 @@ public class UserPracticeAttemptResponse {
     private Long id;
     private Long userId;
     private Long practiceSetId;
+    private String practiceSetTitle;
+    private Long moduleId;
+    private String moduleTitle;
     private LocalDateTime startedAt;
     private LocalDateTime submittedAt;
     private Double score;

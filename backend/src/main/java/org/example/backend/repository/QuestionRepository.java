@@ -9,4 +9,8 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
     List<Question> findAllByOrderByCreatedAtDesc();
 
     List<Question> findByQuestionTextContainingIgnoreCaseOrderByCreatedAtDesc(String keyword);
+    
+    List<Question> findByPartNoOrderByCreatedAtDesc(Integer partNo);
+    
+    List<Question> findByPartNoAndQuestionTextContainingIgnoreCaseOrderByCreatedAtDesc(Integer partNo, String keyword);
 }

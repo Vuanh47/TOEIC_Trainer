@@ -92,7 +92,13 @@ public enum ErrorCode {
     INVALID_QUESTION_DATA(7021, "Invalid question data", HttpStatus.BAD_REQUEST),
     INVALID_PROGRESS_DATA(7022, "Invalid learning progress data", HttpStatus.BAD_REQUEST),
     VIDEO_UPLOAD_FAILED(7023, "Video upload failed", HttpStatus.BAD_REQUEST),
-    VIDEO_UPLOAD_CONFIG_MISSING(7024, "Cloud upload config missing", HttpStatus.BAD_REQUEST);
+    VIDEO_UPLOAD_CONFIG_MISSING(7024, "Cloud upload config missing", HttpStatus.BAD_REQUEST),
+    TEST_NOT_FOUND(7025, "Test not found", HttpStatus.NOT_FOUND),
+    TEST_PART_NOT_FOUND(7026, "Test part not found", HttpStatus.NOT_FOUND),
+    INVALID_TEST_DATA(7027, "Invalid test data", HttpStatus.BAD_REQUEST),
+    PRACTICE_ATTEMPT_NOT_FOUND(7028, "Practice attempt not found", HttpStatus.NOT_FOUND),
+    PRACTICE_ATTEMPT_IN_PROGRESS(7029, "Practice attempt is already in progress", HttpStatus.BAD_REQUEST),
+    INVALID_PRACTICE_ATTEMPT_DATA(7030, "Invalid practice attempt data", HttpStatus.BAD_REQUEST);
 
     int code;
     String message;
