@@ -41,6 +41,7 @@ export type AdminSectionKey =
   | 'modules'
   | 'content'
   | 'questions'
+  | 'tests'
   | 'permissions';
 
 export type AdminVideoLesson = {

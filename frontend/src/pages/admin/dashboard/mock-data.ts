@@ -6,6 +6,7 @@ export const adminSidebarItems: AdminSidebarItem[] = [
   { id: 'modules', icon: 'albums-outline', label: 'Modules' },
   { id: 'content', icon: 'document-text-outline', label: 'Content APIs' },
   { id: 'questions', icon: 'help-circle-outline', label: 'Questions' },
+  { id: 'tests', icon: 'list-outline', label: 'Tests' },
   { id: 'permissions', icon: 'key-outline', label: 'Permissions' },
 ];
 
