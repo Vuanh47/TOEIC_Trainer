@@ -31,6 +31,7 @@ import {
   AdminPracticeSetService,
   AdminQuestionService,
   AdminVideoLessonService,
+  AdminTestService,
 } from "@/src/services/admin";
 import {
   AdminFlashcardApiItem,
@@ -43,6 +44,9 @@ import {
   PracticeSetQuestionApiItem,
   QuestionApiItem,
   VideoLessonApiItem,
+  TestApiItem,
+  TestPartApiItem,
+  TestPartQuestionApiItem,
 } from "@/src/types/admin-api";
 import { AdminSectionKey } from "@/src/types/admin";
 import { confirmWeb } from "@/src/utils/web-dialog";
@@ -250,8 +254,60 @@ const questionFields: AdminField[] = [
   { name: "explanation", label: "Explanation", type: "textarea" },
 ];
 
-const practiceSetQuestionFields: AdminField[] = [
-  { name: "questionId", label: "Question ID", type: "number", required: true },
+const testTypeOptions = [
+  { label: "Full Test", value: "FULL_TEST" },
+  { label: "Reading Only", value: "READING_ONLY" },
+  { label: "Listening Only", value: "LISTENING_ONLY" },
+  { label: "Practice", value: "PRACTICE" },
+];
+
+const testFields: AdminField[] = [
+  { name: "title", label: "Title", type: "text", required: true },
+  { name: "testType", label: "Test type", type: "select", options: testTypeOptions, required: true },
+  { name: "totalDurationMinutes", label: "Duration", type: "number", required: true },
+  { name: "targetScore", label: "Target score", type: "number", required: true },
+  { name: "description", label: "Description", type: "textarea" },
+  { name: "published", label: "Published", type: "switch" },
+];
+
+const partSectionOptions = [
+  { label: "Listening", value: "LISTENING" },
+  { label: "Reading", value: "READING" },
+];
+
+const testPartFields: AdminField[] = [
+  { name: "partName", label: "Part name", type: "text", required: true },
+  { name: "partNumber", label: "Part number", type: "number", required: true },
+  { name: "partSection", label: "Section", type: "select", options: partSectionOptions, required: true },
+  { name: "sortOrder", label: "Sort order", type: "number", required: true },
+  { name: "durationMinutes", label: "Duration", type: "number", required: true },
+  { name: "description", label: "Description", type: "textarea" },
+];
+const testPartQuestionFields = (questions: QuestionApiItem[]): AdminField[] => [
+  {
+    name: "questionId",
+    label: "Question",
+    type: "select",
+    required: true,
+    options: questions.map((q) => ({
+      label: `[#${q.id}] ${q.questionText.substring(0, 50)}${q.questionText.length > 50 ? "..." : ""}`,
+      value: String(q.id),
+    })),
+  },
+  { name: "sortOrder", label: "Sort order", type: "number", required: true },
+];
+
+const practiceSetQuestionFields = (questions: QuestionApiItem[]): AdminField[] => [
+  {
+    name: "questionId",
+    label: "Question",
+    type: "select",
+    required: true,
+    options: questions.map((q) => ({
+      label: `[#${q.id}] ${q.questionText.substring(0, 50)}${q.questionText.length > 50 ? "..." : ""}`,
+      value: String(q.id),
+    })),
+  },
   { name: "sortOrder", label: "Sort order", type: "number", required: true },
 ];
 
@@ -282,6 +338,11 @@ export default function AdminDashboardScreen() {
   const [selectedPracticeSetId, setSelectedPracticeSetId] = useState<
     number | null
   >(null);
+  const [tests, setTests] = useState<TestApiItem[]>([]);
+  const [testParts, setTestParts] = useState<TestPartApiItem[]>([]);
+  const [testPartQuestions, setTestPartQuestions] = useState<TestPartQuestionApiItem[]>([]);
+  const [selectedTestId, setSelectedTestId] = useState<number | null>(null);
+  const [selectedTestPartId, setSelectedTestPartId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [working, setWorking] = useState(false);
@@ -303,6 +364,7 @@ export default function AdminDashboardScreen() {
       questions: new AdminQuestionService(auth.accessToken),
       links: new AdminMilestoneModuleService(auth.accessToken),
       videos: new AdminVideoLessonService(auth.accessToken),
+      tests: new AdminTestService(auth.accessToken),
     };
   }, [auth.accessToken]);
 
@@ -496,8 +558,58 @@ export default function AdminDashboardScreen() {
     }
   }, [handleError, selectedPracticeSetId, services]);
 
+  const loadTests = useCallback(async () => {
+    if (!services) return;
+    try {
+      const response = await services.tests.getAll();
+      const nextTests = response.data ?? [];
+      setTests(nextTests);
+      setSelectedTestId((current) =>
+        current && nextTests.some((item) => item.id === current)
+          ? current
+          : (nextTests[0]?.id ?? null),
+      );
+    } catch (error) {
+      handleError(error);
+    }
+  }, [handleError, services]);
+
+  const loadTestParts = useCallback(async () => {
+    if (!services || !selectedTestId) {
+      setTestParts([]);
+      return;
+    }
+    try {
+      const response = await services.tests.getParts(selectedTestId);
+      const nextParts = [...(response.data ?? [])].sort((a, b) => a.sortOrder - b.sortOrder);
+      setTestParts(nextParts);
+      setSelectedTestPartId((current) =>
+        current && nextParts.some((item) => item.id === current)
+          ? current
+          : (nextParts[0]?.id ?? null),
+      );
+    } catch (error) {
+      handleError(error);
+    }
+  }, [handleError, selectedTestId, services]);
+
+  const loadTestPartQuestions = useCallback(async () => {
+    if (!services || !selectedTestPartId) {
+      setTestPartQuestions([]);
+      return;
+    }
+    try {
+      const response = await services.tests.getPartQuestions(selectedTestPartId);
+      setTestPartQuestions([...(response.data ?? [])].sort((a, b) => a.sortOrder - b.sortOrder));
+    } catch (error) {
+      handleError(error);
+    }
+  }, [handleError, selectedTestPartId, services]);
+
   useEffect(() => {
+
     loadBaseData();
+    loadTests();
   }, [loadBaseData]);
 
   useEffect(() => {
@@ -516,7 +628,16 @@ export default function AdminDashboardScreen() {
     loadPracticeSetQuestions();
   }, [loadPracticeSetQuestions]);
 
+  useEffect(() => {
+    loadTestParts();
+  }, [loadTestParts]);
+
+  useEffect(() => {
+    loadTestPartQuestions();
+  }, [loadTestPartQuestions]);
+
   const runAction = useCallback(
+
     async (action: () => Promise<void>, reload?: () => Promise<void>) => {
       try {
         setWorking(true);
@@ -1303,10 +1424,10 @@ export default function AdminDashboardScreen() {
             label: "Practice set",
             render: (item) => String(item.practiceSetId),
           },
-          { label: "Question", render: (item) => String(item.questionId) },
+          { label: "Question", render: (item) => item.question?.questionText || String(item.questionId) },
           { label: "Order", render: (item) => String(item.sortOrder) },
         ]}
-        fields={practiceSetQuestionFields}
+        fields={practiceSetQuestionFields(questions)}
         getInitialValues={(item?: PracticeSetQuestionApiItem) => ({
           questionId: String(item?.questionId ?? questions[0]?.id ?? ""),
           sortOrder: String(item?.sortOrder ?? practiceSetQuestions.length + 1),
@@ -1403,12 +1524,188 @@ export default function AdminDashboardScreen() {
     />
   );
 
+  const renderTests = () => (
+    <View style={styles.stack}>
+      <AdminCrudPanel
+        columns={[
+          { label: "ID", render: (item) => String(item.id) },
+          { label: "Title", render: (item) => item.title },
+          { label: "Type", render: (item) => item.testType },
+          { label: "Duration", render: (item) => `${item.totalDurationMinutes}m` },
+          { label: "Published", render: (item) => yesNo(item.published) },
+        ]}
+        fields={testFields}
+        getInitialValues={(item?: TestApiItem) => ({
+          title: item?.title ?? "",
+          testType: item?.testType ?? "FULL_TEST",
+          totalDurationMinutes: String(item?.totalDurationMinutes ?? 120),
+          targetScore: String(item?.targetScore ?? 500),
+          description: item?.description ?? "",
+          published: item?.published ?? false,
+        })}
+        getItemId={(item) => item.id}
+        onCreate={(values) =>
+          runAction(
+            () =>
+              services!.tests
+                .create({
+                  title: text(values, "title", true),
+                  testType: text(values, "testType", true),
+                  totalDurationMinutes: numberValue(values, "totalDurationMinutes", true)!,
+                  targetScore: numberValue(values, "targetScore", true)!,
+                  description: text(values, "description"),
+                  published: boolValue(values, "published"),
+                })
+                .then(() => undefined),
+            loadTests,
+          )
+        }
+        onDelete={(item) =>
+          confirmWeb(`Xoa test "${item.title}"?`)
+            ? runAction(
+                () => services!.tests.delete(item.id).then(() => undefined),
+                loadTests,
+              )
+            : Promise.resolve()
+        }
+        onRefresh={loadTests}
+        onUpdate={(item, values) =>
+          runAction(
+            () =>
+              services!.tests
+                .update(item.id, {
+                  title: text(values, "title", true),
+                  testType: text(values, "testType", true),
+                  totalDurationMinutes: numberValue(values, "totalDurationMinutes", true)!,
+                  targetScore: numberValue(values, "targetScore", true)!,
+                  description: text(values, "description"),
+                  published: boolValue(values, "published"),
+                })
+                .then(() => undefined),
+            loadTests,
+          )
+        }
+        records={tests}
+        title="Test Management"
+        working={working}
+      />
+
+      {renderSelector("Manage Parts for Test", tests, selectedTestId, setSelectedTestId)}
+
+      <AdminCrudPanel
+        columns={[
+          { label: "ID", render: (item) => String(item.id) },
+          { label: "No.", render: (item) => String(item.partNumber) },
+          { label: "Name", render: (item) => item.partName },
+          { label: "Section", render: (item) => item.partSection },
+          { label: "Duration", render: (item) => `${item.durationMinutes}m` },
+          { label: "Questions", render: (item) => String(item.questionCount) },
+        ]}
+        fields={testPartFields}
+        getInitialValues={(item?: TestPartApiItem) => ({
+          partName: item?.partName ?? "",
+          partNumber: String(item?.partNumber ?? testParts.length + 1),
+          partSection: item?.partSection ?? "LISTENING",
+          sortOrder: String(item?.sortOrder ?? testParts.length + 1),
+          durationMinutes: String(item?.durationMinutes ?? 45),
+          description: item?.description ?? "",
+        })}
+        getItemId={(item) => item.id}
+        onCreate={(values) =>
+          runAction(
+            () =>
+              services!.tests
+                .createPart(selectedTestId!, {
+                  partName: text(values, "partName", true),
+                  partNumber: numberValue(values, "partNumber", true)!,
+                  partSection: text(values, "partSection", true),
+                  sortOrder: numberValue(values, "sortOrder", true)!,
+                  durationMinutes: numberValue(values, "durationMinutes", true)!,
+                  description: text(values, "description"),
+                })
+                .then(() => undefined),
+            loadTestParts,
+          )
+        }
+        onDelete={(item) =>
+          confirmWeb(`Xoa part "${item.partName}"?`)
+            ? runAction(
+                () => services!.tests.deletePart(item.id).then(() => undefined),
+                loadTestParts,
+              )
+            : Promise.resolve()
+        }
+        onRefresh={loadTestParts}
+        onUpdate={(item, values) =>
+          runAction(
+            () =>
+              services!.tests
+                .updatePart(item.id, {
+                  partName: text(values, "partName", true),
+                  partNumber: numberValue(values, "partNumber", true)!,
+                  partSection: text(values, "partSection", true),
+                  sortOrder: numberValue(values, "sortOrder", true)!,
+                  durationMinutes: numberValue(values, "durationMinutes", true)!,
+                  description: text(values, "description"),
+                })
+                .then(() => undefined),
+            loadTestParts,
+          )
+        }
+        records={testParts}
+        title="Test Part Management"
+        working={working}
+      />
+
+      {renderSelector("Assign Questions to Part", testParts, selectedTestPartId, setSelectedTestPartId)}
+
+      <AdminCrudPanel
+        columns={[
+          { label: "ID", render: (item) => String(item.id) },
+          { label: "Question", render: (item) => item.questionText || String(item.questionId) },
+          { label: "Sort", render: (item) => String(item.sortOrder) },
+        ]}
+        fields={testPartQuestionFields(questions)}
+        getInitialValues={(item?: TestPartQuestionApiItem) => ({
+          questionId: String(item?.questionId ?? ""),
+          sortOrder: String(item?.sortOrder ?? testPartQuestions.length + 1),
+        })}
+        getItemId={(item) => item.id}
+        onCreate={(values) =>
+          runAction(
+            () =>
+              services!.tests
+                .assignQuestions(selectedTestPartId!, {
+                  questionIds: [numberValue(values, "questionId", true)!],
+                })
+                .then(() => undefined),
+            loadTestPartQuestions,
+          )
+        }
+        onDelete={(item) =>
+          confirmWeb(`Go question #${item.questionId} khoi part?`)
+            ? runAction(
+                () => services!.tests.removeQuestion(selectedTestPartId!, item.id).then(() => undefined),
+                loadTestPartQuestions,
+              )
+            : Promise.resolve()
+        }
+        onRefresh={loadTestPartQuestions}
+        records={testPartQuestions}
+        title="Part Question Assignment"
+        working={working}
+      />
+    </View>
+  );
+
   const renderActiveSection = () => {
+
     if (activeSection === "paths") return renderPaths();
     if (activeSection === "milestones") return renderMilestones();
     if (activeSection === "modules") return renderModules();
     if (activeSection === "content") return renderContent();
     if (activeSection === "questions") return renderQuestions();
+    if (activeSection === "tests") return renderTests();
     return renderPermissions();
   };
 

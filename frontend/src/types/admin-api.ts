@@ -300,3 +300,75 @@ export type PracticeSetResponse = ApiResponse<PracticeSetApiItem>;
 export type VideoLessonResponse = ApiResponse<VideoLessonApiItem>;
 export type QuestionResponse = ApiResponse<QuestionApiItem>;
 export type ApiVoidResponse = ApiResponse<null>;
+
+export type TestApiItem = {
+  id: number;
+  title: string;
+  description: string | null;
+  testType: string;
+  totalDurationMinutes: number;
+  targetScore: number;
+  published: boolean;
+  partCount: number;
+  questionCount: number;
+  createdAt: string;
+  updatedAt: string;
+  parts?: TestPartApiItem[];
+};
+
+export type TestPartApiItem = {
+  id: number;
+  partName: string;
+  partNumber: number;
+  partSection: string;
+  description: string | null;
+  sortOrder: number;
+  durationMinutes: number;
+  questionCount: number;
+  createdAt: string;
+  updatedAt: string;
+  questions?: TestPartQuestionApiItem[];
+};
+
+export type TestPartQuestionApiItem = {
+  id: number;
+  questionId: number;
+  sortOrder: number;
+  questionText: string;
+  partNo: number;
+  difficultyLevel: string;
+};
+
+export type CreateTestRequest = {
+  title: string;
+  description?: string;
+  testType: string;
+  totalDurationMinutes: number;
+  targetScore: number;
+  published: boolean;
+};
+
+export type UpdateTestRequest = Partial<CreateTestRequest>;
+
+export type CreateTestPartRequest = {
+  partName: string;
+  partNumber: number;
+  partSection: string;
+  description?: string;
+  sortOrder: number;
+  durationMinutes: number;
+};
+
+export type UpdateTestPartRequest = Partial<CreateTestPartRequest>;
+
+export type AssignTestPartQuestionsRequest = {
+  questionIds: number[];
+};
+
+export type TestListResponse = ApiResponse<TestApiItem[]>;
+export type TestPartListResponse = ApiResponse<TestPartApiItem[]>;
+export type TestPartQuestionListResponse = ApiResponse<TestPartQuestionApiItem[]>;
+
+export type TestResponse = ApiResponse<TestApiItem>;
+export type TestPartResponse = ApiResponse<TestPartApiItem>;
+
