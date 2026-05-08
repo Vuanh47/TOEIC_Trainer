@@ -19,6 +19,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 
 @Configuration(proxyBeanMethods = false)
@@ -51,6 +52,7 @@ public class SecurityConfig {
                                 "/user/**"
                         ).permitAll()
                         .requestMatchers("/auth/logout").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/admin/learning-paths", "/admin/learning-paths/*").hasAnyRole("ADMIN", "USER")
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
