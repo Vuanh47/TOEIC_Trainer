@@ -6,6 +6,7 @@ import org.example.backend.dto.request.SubmitTestAttemptRequest;
 import org.example.backend.dto.response.AIExplainResponse;
 import org.example.backend.dto.response.ApiResponse;
 import org.example.backend.dto.response.TestAttemptResponse;
+import org.example.backend.dto.response.UserTestLeaderboardResponse;
 import org.example.backend.dto.response.TestResponse;
 import org.example.backend.enums.SuccessCode;
 import org.example.backend.service.GeminiAIService;
@@ -62,6 +63,12 @@ public class UserTestController {
     public ResponseEntity<ApiResponse<List<TestAttemptResponse>>> getMyAttempts(Authentication authentication) {
         List<TestAttemptResponse> response = userTestService.getAttemptsForUser(authentication.getName());
         return ApiResponseUtil.success(response, SuccessCode.TEST_ATTEMPT_LISTED);
+    }
+
+    @GetMapping("/leaderboard")
+    public ResponseEntity<ApiResponse<List<UserTestLeaderboardResponse>>> getLeaderboardTop3() {
+        List<UserTestLeaderboardResponse> response = userTestService.getLeaderboardTop3();
+        return ApiResponseUtil.success(response, SuccessCode.TEST_LEADERBOARD_LISTED);
     }
 
     @GetMapping("/attempts/{attemptId}/details")

@@ -98,7 +98,12 @@ public enum ErrorCode {
     INVALID_TEST_DATA(7027, "Invalid test data", HttpStatus.BAD_REQUEST),
     PRACTICE_ATTEMPT_NOT_FOUND(7028, "Practice attempt not found", HttpStatus.NOT_FOUND),
     PRACTICE_ATTEMPT_IN_PROGRESS(7029, "Practice attempt is already in progress", HttpStatus.BAD_REQUEST),
-    INVALID_PRACTICE_ATTEMPT_DATA(7030, "Invalid practice attempt data", HttpStatus.BAD_REQUEST);
+    INVALID_PRACTICE_ATTEMPT_DATA(7030, "Invalid practice attempt data", HttpStatus.BAD_REQUEST),
+    GRAMMAR_NOT_FOUND(7031, "Grammar not found", HttpStatus.NOT_FOUND),
+    INVALID_GRAMMAR_DATA(7032, "Invalid grammar data", HttpStatus.BAD_REQUEST),
+    GRAMMAR_TITLE_EXISTED(7033, "Grammar title already exists", HttpStatus.BAD_REQUEST),
+    GRAMMAR_ALREADY_FAVORITED(7034, "Grammar already added to favorites", HttpStatus.BAD_REQUEST),
+    GRAMMAR_NOT_FAVORITED(7035, "Grammar is not in your favorites", HttpStatus.BAD_REQUEST);
 
     int code;
     String message;
