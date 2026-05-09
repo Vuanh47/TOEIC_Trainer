@@ -9,12 +9,12 @@ import ProgressBar from "@/src/components/user/ProgressBar";
 import SurfaceCard from "@/src/components/user/SurfaceCard";
 import UserScreen from "@/src/components/user/UserScreen";
 import { useAuth } from "@/src/hooks/use-auth";
-import { vocabProgressStore } from "@/src/store/progress-store";
 import {
   completeOrUnlockNextModule,
   getUserModuleContent,
   getUserRoadmap,
 } from "@/src/services/user.service";
+import { vocabProgressStore } from "@/src/store/progress-store";
 import { UserModuleContent, UserRoadmapModuleItem } from "@/src/types/user-api";
 import { pushRoute } from "@/src/utils/navigation";
 
@@ -48,19 +48,17 @@ export default function RoadmapScreen() {
         .flatMap((milestone) => milestone.modules)
         .sort((a, b) => a.sortOrder - b.sortOrder);
 
-      const fallbackModuleId =
-        roadmap?.currentModuleId ?? roadmapModules[0]?.moduleId ?? selectedModuleId;
+      const fallbackModuleId = roadmap?.currentModuleId ?? roadmapModules[0]?.moduleId ?? selectedModuleId;
       const resolvedModuleId = selectedModuleId ?? fallbackModuleId;
 
       if (!resolvedModuleId) {
         setModuleInfo(null);
         setModuleContent(null);
-        setErrorMessage("Khong tim thay module trong lo trinh cua ban.");
+        setErrorMessage("Khong tim thay module trong roadmap cua ban.");
         return;
       }
 
-      const matchedModule = roadmapModules.find((module) => module.moduleId === resolvedModuleId);
-      setModuleInfo(matchedModule ?? null);
+      setModuleInfo(roadmapModules.find((module) => module.moduleId === resolvedModuleId) ?? null);
 
       const modulePayload = await getUserModuleContent(auth.accessToken, resolvedModuleId);
       setModuleContent(modulePayload.data ?? null);
@@ -116,7 +114,7 @@ export default function RoadmapScreen() {
       }
 
       if (response.data?.pathCompleted) {
-        Alert.alert("Module", "Ban da hoan thanh toan bo learning path hien tai.");
+        pushRoute(`/user/path-complete?moduleId=${activeModuleId}`);
         return;
       }
 
@@ -134,8 +132,8 @@ export default function RoadmapScreen() {
       <AppHeader
         leftIcon="chevron-back-outline"
         onLeftPress={() => router.back()}
-        rightSlot={<Ionicons color={colors.primaryDark} name="person-circle" size={42} />}
-        subtitle={moduleContent?.moduleType ?? moduleInfo?.moduleType ?? "USER MODULE"}
+        rightSlot={<Ionicons color={colors.primaryDark} name="map-outline" size={32} />}
+        subtitle={moduleContent?.moduleType ?? moduleInfo?.moduleType ?? "ROADMAP MODULE"}
         title={moduleContent?.title ?? moduleInfo?.title ?? "Module detail"}
       />
 
@@ -155,10 +153,8 @@ export default function RoadmapScreen() {
               <Ionicons color={colors.surface} name="checkmark" size={18} />
             </View>
             <View style={styles.successBody}>
-              <Text style={styles.successTitle}>Da hoan thanh flashcard</Text>
-              <Text style={styles.successText}>
-                Buoc 2 da xong. Ban co the bat dau luyen de ngay bay gio.
-              </Text>
+              <Text style={styles.successTitle}>Da san sang cho practice</Text>
+              <Text style={styles.successText}>Ban da xong video va tu vung, co the vao luyen de ngay.</Text>
             </View>
           </View>
         </SurfaceCard>
@@ -194,8 +190,97 @@ export default function RoadmapScreen() {
       </SurfaceCard>
 
       <SurfaceCard style={styles.listCard}>
-        <Text style={styles.listTitle}>Video lessons</Text>
-        {(moduleContent?.videoLessons ?? []).slice(0, 4).map((lesson) => (
+        <Text style={styles.listTitle}>Lo trinh hoan thanh</Text>
+        <View style={styles.flowBlock}>
+          <View style={styles.flowRow}>
+            <View style={[styles.flowBadge, allVideosCompleted ? styles.flowBadgeDone : null]}>
+              <Text style={styles.flowBadgeText}>1</Text>
+            </View>
+            <View style={styles.flowBody}>
+              <Text style={styles.flowTitle}>Hoc video</Text>
+              <Text style={styles.flowSub}>{completedVideoLessons}/{totalVideoLessons} bai da hoan thanh</Text>
+            </View>
+          </View>
+          <View style={styles.flowRow}>
+            <View style={[styles.flowBadge, vocabStepDone ? styles.flowBadgeDone : null]}>
+              <Text style={styles.flowBadgeText}>2</Text>
+            </View>
+            <View style={styles.flowBody}>
+              <Text style={styles.flowTitle}>Luyen tu vung</Text>
+              <Text style={styles.flowSub}>Mo sau khi xong video trong module</Text>
+            </View>
+          </View>
+          <View style={styles.flowRow}>
+            <View style={[styles.flowBadge, practiceStepDone ? styles.flowBadgeDone : null]}>
+              <Text style={styles.flowBadgeText}>3</Text>
+            </View>
+            <View style={styles.flowBody}>
+              <Text style={styles.flowTitle}>Luyen practice</Text>
+              <Text style={styles.flowSub}>Mo khi buoc 1 va 2 da xong</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.actionCol}>
+          <Pressable
+            onPress={() => {
+              if (activeModuleId) pushRoute(`/user/lesson?moduleId=${activeModuleId}`);
+            }}
+            style={styles.actionButtonPrimary}
+          >
+            <Text style={styles.actionButtonPrimaryText}>Buoc 1: Hoc video</Text>
+          </Pressable>
+
+          <Pressable
+            disabled={!activeModuleId || !canOpenVocab}
+            onPress={() => {
+              if (activeModuleId) {
+                pushRoute(`/user/cards?moduleId=${activeModuleId}`);
+              }
+            }}
+            style={[
+              vocabStepDone ? styles.actionButtonDone : styles.actionButtonSoft,
+              !canOpenVocab ? styles.actionButtonDisabled : null,
+            ]}
+          >
+            <Text style={vocabStepDone ? styles.actionButtonPrimaryText : styles.actionButtonSoftText}>
+              Buoc 2: Luyen tu vung
+            </Text>
+          </Pressable>
+
+          <Pressable
+            disabled={!activeModuleId || !canOpenPractice}
+            onPress={() => {
+              if (activeModuleId) {
+                setPracticeStepDone(true);
+                pushRoute(`/user/practice-module?moduleId=${activeModuleId}`);
+              }
+            }}
+            style={[
+              shouldHighlightPractice ? styles.actionButtonPrimary : styles.actionButtonSoft,
+              !canOpenPractice ? styles.actionButtonDisabled : null,
+            ]}
+          >
+            <Text style={shouldHighlightPractice ? styles.actionButtonPrimaryText : styles.actionButtonSoftText}>
+              Buoc 3: Luyen practice
+            </Text>
+          </Pressable>
+
+          <Pressable
+            disabled={!activeModuleId || unlocking || !canCompleteModule}
+            onPress={handleCompleteModule}
+            style={[styles.actionButtonDone, unlocking || !canCompleteModule ? styles.actionButtonDisabled : null]}
+          >
+            <Text style={styles.actionButtonPrimaryText}>
+              {unlocking ? "Dang cap nhat..." : "Buoc 4: Hoan thanh module"}
+            </Text>
+          </Pressable>
+        </View>
+      </SurfaceCard>
+
+      <SurfaceCard style={styles.listCard}>
+        <Text style={styles.listTitle}>Noi dung co san</Text>
+        {(moduleContent?.videoLessons ?? []).slice(0, 3).map((lesson) => (
           <View key={lesson.lessonId} style={styles.listRow}>
             <Ionicons color={colors.primaryDark} name="play-circle-outline" size={18} />
             <View style={styles.listBody}>
@@ -204,14 +289,7 @@ export default function RoadmapScreen() {
             </View>
           </View>
         ))}
-        {(moduleContent?.videoLessons?.length ?? 0) === 0 ? (
-          <Text style={styles.emptyText}>Chua co video duoc publish.</Text>
-        ) : null}
-      </SurfaceCard>
-
-      <SurfaceCard style={styles.listCard}>
-        <Text style={styles.listTitle}>Vocabulary from admin</Text>
-        {(moduleContent?.flashcards ?? []).slice(0, 4).map((card) => (
+        {(moduleContent?.flashcards ?? []).slice(0, 2).map((card) => (
           <View key={card.id} style={styles.listRow}>
             <Ionicons color={colors.primaryDark} name="book-outline" size={18} />
             <View style={styles.listBody}>
@@ -220,14 +298,7 @@ export default function RoadmapScreen() {
             </View>
           </View>
         ))}
-        {(moduleContent?.flashcards?.length ?? 0) === 0 ? (
-          <Text style={styles.emptyText}>Chua co flashcard trong module.</Text>
-        ) : null}
-      </SurfaceCard>
-
-      <SurfaceCard style={styles.listCard}>
-        <Text style={styles.listTitle}>Practice sets</Text>
-        {(moduleContent?.practiceSets ?? []).slice(0, 4).map((set) => (
+        {(moduleContent?.practiceSets ?? []).slice(0, 2).map((set) => (
           <Pressable
             key={set.id}
             disabled={!canOpenPractice}
@@ -245,134 +316,46 @@ export default function RoadmapScreen() {
             <Ionicons color={colors.textMuted} name="chevron-forward" size={18} />
           </Pressable>
         ))}
-        {(moduleContent?.practiceSets?.length ?? 0) === 0 ? (
-          <Text style={styles.emptyText}>Chua co de luyen tap duoc publish.</Text>
-        ) : null}
-      </SurfaceCard>
-
-      <SurfaceCard style={styles.listCard}>
-        <Text style={styles.listTitle}>Quy trinh hoan thanh module</Text>
-        <Text style={styles.flowText}>
-          1) Xem video: {completedVideoLessons}/{totalVideoLessons} bai{"\n"}
-          2) Luyen tu vung{"\n"}
-          3) Luyen de{"\n"}
-          4) Hoan thanh module
-        </Text>
-
-        <View style={styles.actionCol}>
-          <Pressable
-            onPress={() => {
-              if (activeModuleId) pushRoute(`/user/lesson?moduleId=${activeModuleId}`);
-            }}
-            style={styles.actionButton}
-          >
-            <Text style={styles.actionText}>Buoc 1: Hoc video</Text>
-          </Pressable>
-
-          <Pressable
-            disabled={!activeModuleId || !canOpenVocab}
-            onPress={() => {
-              if (activeModuleId) {
-                pushRoute(`/user/cards?moduleId=${activeModuleId}`);
-              }
-            }}
-            style={[
-              vocabStepDone ? styles.actionButtonDone : styles.actionButtonSoft,
-              !canOpenVocab ? styles.actionButtonDisabled : null,
-            ]}
-          >
-            <Text style={vocabStepDone ? styles.actionText : styles.actionTextSoft}>Buoc 2: Luyen tu vung</Text>
-          </Pressable>
-
-          <Pressable
-            disabled={!activeModuleId || !canOpenPractice}
-            onPress={() => {
-              if (activeModuleId) {
-                setPracticeStepDone(true);
-                pushRoute(`/user/practice-module?moduleId=${activeModuleId}`);
-              }
-            }}
-            style={[
-              shouldHighlightPractice ? styles.actionButton : styles.actionButtonSoft,
-              !canOpenPractice ? styles.actionButtonDisabled : null,
-            ]}
-          >
-            <Text style={shouldHighlightPractice ? styles.actionText : styles.actionTextSoft}>Buoc 3: Luyen de</Text>
-          </Pressable>
-
-          <Pressable
-            disabled={!activeModuleId || unlocking || !canCompleteModule}
-            onPress={handleCompleteModule}
-            style={[
-              styles.actionButtonStrong,
-              unlocking || !canCompleteModule ? styles.actionButtonDisabled : null,
-            ]}
-          >
-            <Text style={styles.actionText}>
-              {unlocking ? "Dang cap nhat..." : "Buoc 4: Hoan thanh module nay"}
-            </Text>
-          </Pressable>
-        </View>
       </SurfaceCard>
     </UserScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  actionButton: {
-    alignItems: "center",
-    backgroundColor: colors.primary,
-    borderRadius: radius.pill,
-    flex: 1,
-    paddingVertical: 14,
-  },
   actionButtonDisabled: {
-    opacity: 0.7,
-  },
-  actionButtonSoft: {
-    alignItems: "center",
-    backgroundColor: "#E9EDFA",
-    borderRadius: radius.pill,
-    flex: 1,
-    paddingVertical: 14,
+    opacity: 0.6,
   },
   actionButtonDone: {
     alignItems: "center",
-    backgroundColor: "#24963F",
+    backgroundColor: colors.success,
     borderRadius: radius.pill,
-    flex: 1,
     paddingVertical: 14,
   },
-  actionButtonStrong: {
+  actionButtonPrimary: {
     alignItems: "center",
-    backgroundColor: "#24963F",
+    backgroundColor: colors.primaryDark,
     borderRadius: radius.pill,
-    flex: 1,
     paddingVertical: 14,
   },
-  actionRow: {
-    flexDirection: "row",
-    gap: spacing.md,
-    marginBottom: spacing.xl,
-  },
-  actionCol: {
-    gap: spacing.sm,
-    marginTop: spacing.md,
-  },
-  actionText: {
+  actionButtonPrimaryText: {
     color: colors.surface,
     fontSize: 15,
     fontWeight: "900",
   },
-  actionTextSoft: {
+  actionButtonSoft: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.pill,
+    paddingVertical: 14,
+  },
+  actionButtonSoftText: {
     color: colors.primaryDark,
     fontSize: 15,
     fontWeight: "900",
   },
-  emptyText: {
-    color: colors.textMuted,
-    fontSize: 14,
-    marginTop: spacing.sm,
+  actionCol: {
+    gap: spacing.sm,
+    marginTop: spacing.lg,
   },
   disabledRow: {
     opacity: 0.55,
@@ -380,13 +363,49 @@ const styles = StyleSheet.create({
   errorText: {
     backgroundColor: "rgba(249,112,102,0.1)",
     borderColor: "rgba(249,112,102,0.24)",
-    borderRadius: 8,
+    borderRadius: radius.md,
     borderWidth: 1,
     color: colors.danger,
-    fontSize: 13,
     marginBottom: spacing.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+  },
+  flowBadge: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.pill,
+    height: 30,
+    justifyContent: "center",
+    width: 30,
+  },
+  flowBadgeDone: {
+    backgroundColor: colors.success,
+  },
+  flowBadgeText: {
+    color: colors.primaryDark,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  flowBlock: {
+    gap: spacing.md,
+  },
+  flowBody: {
+    flex: 1,
+  },
+  flowRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  flowSub: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  flowTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "800",
   },
   listBody: {
     flex: 1,
@@ -411,15 +430,10 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   listTitle: {
-    color: colors.text,
+    color: colors.primaryDark,
     fontSize: 18,
     fontWeight: "900",
-  },
-  flowText: {
-    color: colors.textMuted,
-    fontSize: 13,
-    lineHeight: 20,
-    marginTop: spacing.sm,
+    marginBottom: spacing.md,
   },
   loadingText: {
     color: colors.textMuted,
@@ -431,6 +445,21 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginBottom: spacing.lg,
   },
+  statItem: {
+    alignItems: "center",
+    flex: 1,
+  },
+  statLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    marginTop: 2,
+    textTransform: "uppercase",
+  },
+  statValue: {
+    color: colors.primaryDark,
+    fontSize: 28,
+    fontWeight: "900",
+  },
   successBody: {
     flex: 1,
   },
@@ -441,7 +470,7 @@ const styles = StyleSheet.create({
   },
   successIcon: {
     alignItems: "center",
-    backgroundColor: "#24963F",
+    backgroundColor: colors.success,
     borderRadius: radius.pill,
     height: 34,
     justifyContent: "center",
@@ -461,21 +490,6 @@ const styles = StyleSheet.create({
   successTitle: {
     color: "#113A1A",
     fontSize: 15,
-    fontWeight: "900",
-  },
-  statItem: {
-    alignItems: "center",
-    flex: 1,
-  },
-  statLabel: {
-    color: colors.textMuted,
-    fontSize: 11,
-    marginTop: 2,
-    textTransform: "uppercase",
-  },
-  statValue: {
-    color: colors.primaryDark,
-    fontSize: 28,
     fontWeight: "900",
   },
   summaryCard: {

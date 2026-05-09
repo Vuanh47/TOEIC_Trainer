@@ -1,4 +1,5 @@
 export { AdminFlashcardService } from '@/src/services/admin/admin-flashcard.service';
+export { AdminGrammarService } from '@/src/services/admin/admin-grammar.service';
 export { AdminLearningModuleService } from '@/src/services/admin/admin-learning-module.service';
 export { AdminLearningPathMilestoneService } from '@/src/services/admin/admin-learning-path-milestone.service';
 export { AdminLearningPathService } from '@/src/services/admin/admin-learning-path.service';

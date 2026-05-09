@@ -97,6 +97,17 @@ export type VideoUploadApiItem = {
   bytes: number | null;
 };
 
+export type GrammarApiItem = {
+  id: number;
+  title: string;
+  content: string;
+  tips: string | null;
+  example: string | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type QuestionOptionApiItem = {
   id: number;
   questionId: number;
@@ -226,6 +237,16 @@ export type UpdateVideoLessonRequest = {
   videoUrl?: string;
 };
 
+export type CreateGrammarRequest = {
+  active?: boolean;
+  content: string;
+  example?: string | null;
+  tips?: string | null;
+  title: string;
+};
+
+export type UpdateGrammarRequest = Partial<CreateGrammarRequest>;
+
 export type PracticeSetType = 'PLACEMENT' | 'PRACTICE';
 export type QuestionSourceType = 'ETS' | 'HACKER' | 'INTERNAL';
 
@@ -288,6 +309,7 @@ export type FlashcardListResponse = ApiResponse<AdminFlashcardApiItem[]>;
 export type PracticeSetListResponse = ApiResponse<PracticeSetApiItem[]>;
 export type VideoLessonListResponse = ApiResponse<VideoLessonApiItem[]>;
 export type VideoUploadResponse = ApiResponse<VideoUploadApiItem>;
+export type GrammarListResponse = ApiResponse<GrammarApiItem[]>;
 export type QuestionListResponse = ApiResponse<QuestionApiItem[]>;
 export type PracticeSetQuestionListResponse = ApiResponse<PracticeSetQuestionApiItem[]>;
 
@@ -298,6 +320,7 @@ export type MilestoneModuleResponse = ApiResponse<MilestoneModuleApiItem>;
 export type LearningModuleResponse = ApiResponse<LearningModuleApiItem>;
 export type PracticeSetResponse = ApiResponse<PracticeSetApiItem>;
 export type VideoLessonResponse = ApiResponse<VideoLessonApiItem>;
+export type GrammarResponse = ApiResponse<GrammarApiItem>;
 export type QuestionResponse = ApiResponse<QuestionApiItem>;
 export type ApiVoidResponse = ApiResponse<null>;
 

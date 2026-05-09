@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-nati
 import { colors, radius, spacing } from "@/src/assets/styles/user-theme";
 import AppHeader, { AvatarBadge } from "@/src/components/user/AppHeader";
 import ProgressBar from "@/src/components/user/ProgressBar";
+import SurfaceCard from "@/src/components/user/SurfaceCard";
 import UserScreen from "@/src/components/user/UserScreen";
 import { useAuth } from "@/src/hooks/use-auth";
 import { getUserRoadmap } from "@/src/services/user.service";
@@ -33,7 +34,7 @@ export default function PracticeScreen() {
       setRoadmap(payload.data ?? null);
     } catch (error) {
       setRoadmap(null);
-      setErrorMessage(error instanceof Error ? error.message : "Khong the tai lo trinh hoc.");
+      setErrorMessage(error instanceof Error ? error.message : "Khong the tai roadmap practice.");
     } finally {
       setLoading(false);
     }
@@ -47,60 +48,104 @@ export default function PracticeScreen() {
   const moduleNodes = useMemo<ModuleNode[]>(() => {
     if (!roadmap) return [];
 
-    const orderedModules = roadmap.milestones
-      .flatMap((milestone) => milestone.modules)
-      .sort((a, b) => a.sortOrder - b.sortOrder);
-
-    return orderedModules.map((module) => ({
-      isCompleted: module.progressStatus === "COMPLETED",
-      isCurrent:
-        module.moduleId === roadmap.currentModuleId ||
-        module.progressStatus === "IN_PROGRESS",
-      module,
-    }));
+    return roadmap.milestones
+      .flatMap((milestone) =>
+        milestone.modules.map((module) => ({
+          milestoneTitle: milestone.title,
+          module,
+        })),
+      )
+      .sort((a, b) => a.module.sortOrder - b.module.sortOrder)
+      .map(({ milestoneTitle, module }) => ({
+        isCompleted: module.progressStatus === "COMPLETED",
+        isCurrent:
+          module.moduleId === roadmap.currentModuleId ||
+          module.progressStatus === "IN_PROGRESS",
+        module: {
+          ...module,
+          description: module.description ?? `Milestone: ${milestoneTitle}`,
+        },
+      }));
   }, [roadmap]);
 
-  const currentModule = useMemo(
-    () => moduleNodes.find((item) => item.isCurrent)?.module ?? moduleNodes[0]?.module ?? null,
-    [moduleNodes],
-  );
+  const currentModule =
+    moduleNodes.find((item) => item.isCurrent)?.module ??
+    moduleNodes[0]?.module ??
+    null;
+  const completionRatio = `${moduleNodes.filter((item) => item.isCompleted).length}/${moduleNodes.length || 0}`;
 
   const openModule = (moduleId: number) => {
-    pushRoute(`/user/grammar?moduleId=${moduleId}`);
+    pushRoute(`/user/roadmap?moduleId=${moduleId}`);
+  };
+
+  const openCurrentPractice = () => {
+    if (!currentModule) return;
+    pushRoute(`/user/roadmap?moduleId=${currentModule.moduleId}&focus=practice`);
   };
 
   return (
     <UserScreen>
-      <AppHeader rightSlot={<AvatarBadge label="A" />} title="Academic Concierge" />
+      <AppHeader
+        rightSlot={<AvatarBadge label={(auth.user?.fullName ?? "A").charAt(0).toUpperCase()} />}
+        subtitle="Roadmap lo trinh"
+        title="TOEIC Trainer"
+      />
 
-      <Text style={styles.levelLabel}>
-        TARGET {roadmap?.targetScore ?? auth.user?.targetScore ?? "--"}+
-      </Text>
-      <Text style={styles.title}>{roadmap?.learningPathTitle ?? "TOEIC Learning Path"}</Text>
+      <SurfaceCard style={styles.heroCard}>
+        <Text style={styles.heroEyebrow}>LO TRINH DANG CHON</Text>
+        <Text style={styles.title}>{roadmap?.learningPathTitle ?? "Chua chon lo trinh hoc"}</Text>
+        <Text style={styles.subtitle}>
+          Khi bam lo trinh o trang home, practice se hien roadmap tuong ung tu backend va dan xuong theo
+          tung module.
+        </Text>
 
-      <View style={styles.progressShell}>
+        <View style={styles.summaryGrid}>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryValue}>{roadmap?.targetScore ?? auth.user?.targetScore ?? "--"}+</Text>
+            <Text style={styles.summaryLabel}>Muc tieu</Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryValue}>{completionRatio}</Text>
+            <Text style={styles.summaryLabel}>Module xong</Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Text numberOfLines={1} style={styles.summaryValueCompact}>
+              {roadmap?.status ?? "PENDING"}
+            </Text>
+            <Text style={styles.summaryLabel}>Trang thai</Text>
+          </View>
+        </View>
+
         <ProgressBar
-          label="COURSE PROGRESS"
+          accentColor={colors.accent}
+          label="Tien do toan lo trinh"
           rightLabel={`${Math.round(roadmap?.progressPercent ?? 0)}%`}
           value={roadmap?.progressPercent ?? 0}
         />
-      </View>
+      </SurfaceCard>
+
+      <Pressable onPress={openCurrentPractice} style={styles.primaryButton}>
+        <Ionicons color={colors.surface} name="play-circle-outline" size={18} />
+        <Text style={styles.primaryButtonText}>Tiep tuc module hien tai</Text>
+      </Pressable>
 
       {loading ? (
-        <View style={styles.loadingWrap}>
+        <View style={styles.feedbackRow}>
           <ActivityIndicator color={colors.primaryDark} />
-          <Text style={styles.loadingText}>Dang dong bo lo trinh tu backend...</Text>
+          <Text style={styles.feedbackText}>Dang dong bo roadmap tu backend...</Text>
         </View>
       ) : null}
 
       {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
 
       {!loading && !errorMessage && moduleNodes.length === 0 ? (
-        <Text style={styles.emptyText}>Chua co module nao trong lo trinh hien tai.</Text>
+        <SurfaceCard>
+          <Text style={styles.emptyText}>Chua co module nao trong lo trinh hien tai.</Text>
+        </SurfaceCard>
       ) : null}
 
-      <View style={styles.timeline}>
-        <View style={styles.dashedLine} />
+      <View style={styles.treeWrap}>
+        <View style={styles.centerLine} />
         {moduleNodes.map((item, index) => {
           const alignRight = index % 2 === 1;
           const isCurrent = item.isCurrent;
@@ -110,231 +155,297 @@ export default function PracticeScreen() {
             <View
               key={item.module.moduleId}
               style={[
-                styles.timelineItem,
-                alignRight ? styles.timelineItemRight : styles.timelineItemLeft,
+                styles.branchRow,
+                alignRight ? styles.branchRowRight : styles.branchRowLeft,
               ]}
             >
-              <Pressable
-                onPress={() => openModule(item.module.moduleId)}
+              <View
                 style={[
-                  styles.node,
-                  isDone ? styles.nodeDone : null,
-                  isCurrent ? styles.nodeCurrent : null,
+                  styles.connector,
+                  alignRight ? styles.connectorRight : styles.connectorLeft,
+                ]}
+              />
+
+              <View
+                style={[
+                  styles.nodeWrap,
+                  alignRight ? styles.nodeWrapRight : styles.nodeWrapLeft,
                 ]}
               >
-                <Ionicons
-                  color={isCurrent || isDone ? colors.primaryDark : "#ACB1C0"}
-                  name={isDone ? "checkmark" : isCurrent ? "school-outline" : "book-outline"}
-                  size={28}
-                />
-              </Pressable>
-
-              {isCurrent ? (
-                <View style={styles.startBubble}>
-                  <Text style={styles.startBubbleText}>CURRENT MODULE</Text>
+                <View
+                  style={[
+                    styles.nodeBadge,
+                    isDone ? styles.nodeBadgeDone : null,
+                    isCurrent ? styles.nodeBadgeCurrent : null,
+                  ]}
+                >
+                  <Ionicons
+                    color={isDone || isCurrent ? colors.surface : colors.primaryDark}
+                    name={isDone ? "checkmark-outline" : isCurrent ? "flash-outline" : "book-outline"}
+                    size={18}
+                  />
                 </View>
-              ) : null}
 
-              <Text style={styles.unitTitle}>{item.module.title}</Text>
-              <Text style={styles.unitMeta}>
-                {item.module.videoLessonCount} videos • {item.module.flashcardCount} vocab •{" "}
-                {item.module.practiceSetCount} practices
-              </Text>
-
-              <View style={styles.unitProgressWrap}>
-                <ProgressBar
-                  accentColor={isDone ? "#24963F" : colors.primary}
-                  rightLabel={`${Math.round(item.module.progressPercent)}%`}
-                  value={item.module.progressPercent}
-                />
+                <Pressable onPress={() => openModule(item.module.moduleId)} style={styles.roadmapCard}>
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.moduleStep}>Module {index + 1}</Text>
+                    {isCurrent ? <Text style={styles.currentTag}>Dang hoc</Text> : null}
+                    {isDone ? <Text style={styles.doneTag}>Hoan thanh</Text> : null}
+                  </View>
+                  <Text style={styles.moduleTitle}>{item.module.title}</Text>
+                  <Text style={styles.moduleDescription}>
+                    {item.module.description ?? "Noi dung module roadmap."}
+                  </Text>
+                  <View style={styles.moduleMetaRow}>
+                    <Text style={styles.moduleMeta}>{item.module.videoLessonCount} video</Text>
+                    <Text style={styles.moduleMeta}>{item.module.flashcardCount} vocab</Text>
+                    <Text style={styles.moduleMeta}>{item.module.practiceSetCount} practice</Text>
+                  </View>
+                  <ProgressBar
+                    accentColor={isDone ? colors.success : colors.primary}
+                    rightLabel={`${Math.round(item.module.progressPercent)}%`}
+                    value={item.module.progressPercent}
+                  />
+                </Pressable>
               </View>
             </View>
           );
         })}
-
-        <View style={styles.rewardWrap}>
-          <View style={styles.rewardCircle}>
-            <Ionicons color="#BCC0CF" name="ribbon-outline" size={30} />
-          </View>
-          <Text style={styles.rewardLabel}>{roadmap?.status ?? "ACTIVE PATH"}</Text>
-        </View>
       </View>
-
-      <Pressable
-        onPress={() => {
-          if (currentModule) {
-            openModule(currentModule.moduleId);
-          }
-        }}
-        style={styles.energyButton}
-      >
-        <Ionicons color={colors.text} name="flash" size={22} />
-      </Pressable>
     </UserScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  dashedLine: {
-    alignSelf: "center",
-    borderColor: "#D9DEEC",
-    borderStyle: "dashed",
-    borderWidth: 2,
+  branchRow: {
+    marginBottom: spacing.xl,
+    minHeight: 170,
+    position: "relative",
+    width: "100%",
+  },
+  branchRowLeft: {
+    alignItems: "flex-start",
+  },
+  branchRowRight: {
+    alignItems: "flex-end",
+  },
+  cardHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  centerLine: {
+    backgroundColor: colors.borderStrong,
     bottom: 0,
+    left: "50%",
+    marginLeft: -1,
     position: "absolute",
     top: 0,
+    width: 2,
+  },
+  connector: {
+    borderColor: colors.borderStrong,
+    borderTopWidth: 2,
+    height: 72,
+    position: "absolute",
+    top: 22,
+    width: 52,
+  },
+  connectorLeft: {
+    borderLeftWidth: 2,
+    borderTopLeftRadius: 28,
+    left: "50%",
+  },
+  connectorRight: {
+    borderRightWidth: 2,
+    borderTopRightRadius: 28,
+    right: "50%",
+  },
+  currentTag: {
+    backgroundColor: colors.primaryDark,
+    borderRadius: radius.pill,
+    color: colors.surface,
+    fontSize: 11,
+    fontWeight: "800",
+    overflow: "hidden",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  doneTag: {
+    backgroundColor: "#DCF7E6",
+    borderRadius: radius.pill,
+    color: colors.success,
+    fontSize: 11,
+    fontWeight: "800",
+    overflow: "hidden",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
   emptyText: {
     color: colors.textMuted,
     fontSize: 15,
-    marginBottom: spacing.lg,
     textAlign: "center",
-  },
-  energyButton: {
-    alignItems: "center",
-    alignSelf: "flex-end",
-    backgroundColor: "#59FF77",
-    borderRadius: radius.md,
-    height: 56,
-    justifyContent: "center",
-    marginTop: spacing.lg,
-    width: 56,
   },
   errorText: {
     backgroundColor: "rgba(249,112,102,0.1)",
     borderColor: "rgba(249,112,102,0.24)",
-    borderRadius: 8,
+    borderRadius: radius.md,
     borderWidth: 1,
     color: colors.danger,
-    fontSize: 13,
     marginBottom: spacing.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
-  levelLabel: {
-    color: "#1A7C2B",
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: 1.8,
-    marginBottom: spacing.sm,
+  feedbackRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
-  loadingText: {
+  feedbackText: {
     color: colors.textMuted,
     fontSize: 14,
   },
-  loadingWrap: {
+  heroCard: {
+    backgroundColor: "#F7FBFF",
+    marginBottom: spacing.lg,
+  },
+  heroEyebrow: {
+    color: colors.accent,
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+    marginBottom: spacing.xs,
+  },
+  moduleDescription: {
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 21,
+    marginBottom: spacing.sm,
+  },
+  moduleMeta: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  moduleMetaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  moduleStep: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  moduleTitle: {
+    color: colors.primaryDark,
+    fontSize: 17,
+    fontWeight: "900",
+    marginBottom: spacing.xs,
+  },
+  nodeBadge: {
     alignItems: "center",
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.borderStrong,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    height: 38,
+    justifyContent: "center",
+    left: -19,
+    position: "absolute",
+    top: 24,
+    width: 38,
+    zIndex: 2,
+  },
+  nodeBadgeCurrent: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  nodeBadgeDone: {
+    backgroundColor: colors.success,
+    borderColor: colors.success,
+  },
+  nodeWrap: {
+    position: "relative",
+    width: "44%",
+  },
+  nodeWrapLeft: {
+    marginRight: "56%",
+  },
+  nodeWrapRight: {
+    marginLeft: "56%",
+  },
+  primaryButton: {
+    alignItems: "center",
+    backgroundColor: colors.primaryDark,
+    borderRadius: radius.pill,
+    flexDirection: "row",
+    gap: spacing.sm,
+    justifyContent: "center",
+    marginBottom: spacing.lg,
+    paddingVertical: 15,
+  },
+  primaryButtonText: {
+    color: colors.surface,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  roadmapCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    minHeight: 148,
+    padding: spacing.lg,
+  },
+  subtitle: {
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 22,
+    marginBottom: spacing.lg,
+  },
+  summaryCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    flex: 1,
+    minWidth: 0,
+    padding: spacing.md,
+  },
+  summaryGrid: {
     flexDirection: "row",
     gap: spacing.sm,
     marginBottom: spacing.lg,
   },
-  node: {
-    alignItems: "center",
-    backgroundColor: colors.surface,
-    borderRadius: radius.pill,
-    height: 84,
-    justifyContent: "center",
-    width: 84,
-  },
-  nodeCurrent: {
-    backgroundColor: colors.primary,
-    borderColor: colors.surface,
-    borderWidth: 4,
-    shadowColor: colors.primaryDark,
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
-  },
-  nodeDone: {
-    backgroundColor: "#9AF78B",
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-  },
-  progressShell: {
-    backgroundColor: "rgba(255,255,255,0.88)",
-    borderRadius: radius.lg,
-    marginBottom: spacing.xl,
-    padding: spacing.md,
-  },
-  rewardCircle: {
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.6)",
-    borderColor: "#DADFF1",
-    borderRadius: radius.pill,
-    borderStyle: "dashed",
-    borderWidth: 2,
-    height: 120,
-    justifyContent: "center",
-    width: 120,
-  },
-  rewardLabel: {
+  summaryLabel: {
     color: colors.textMuted,
     fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 1.2,
-    marginTop: spacing.sm,
+    marginTop: 4,
   },
-  rewardWrap: {
-    alignItems: "center",
-    marginTop: spacing.lg,
-  },
-  startBubble: {
-    alignItems: "center",
-    alignSelf: "center",
-    backgroundColor: "#171B28",
-    borderRadius: radius.pill,
-    marginBottom: spacing.sm,
-    marginTop: -18,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 10,
-  },
-  startBubbleText: {
-    color: colors.surface,
-    fontSize: 12,
+  summaryValue: {
+    color: colors.primaryDark,
+    fontSize: 18,
     fontWeight: "900",
   },
-  timeline: {
-    paddingBottom: spacing.xl,
-    position: "relative",
-  },
-  timelineItem: {
-    marginBottom: spacing.xl,
-    width: "50%",
-  },
-  timelineItemLeft: {
-    alignItems: "center",
-    alignSelf: "flex-start",
-    paddingRight: spacing.md,
-  },
-  timelineItemRight: {
-    alignItems: "center",
-    alignSelf: "flex-end",
-    paddingLeft: spacing.md,
+  summaryValueCompact: {
+    color: colors.primaryDark,
+    fontSize: 16,
+    fontWeight: "900",
   },
   title: {
     color: colors.primaryDark,
     fontSize: 28,
     fontWeight: "900",
     lineHeight: 34,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.sm,
   },
-  unitMeta: {
-    color: colors.textMuted,
-    fontSize: 12,
-    marginTop: 4,
-    textAlign: "center",
-  },
-  unitProgressWrap: {
-    marginTop: spacing.sm,
-    width: "100%",
-  },
-  unitTitle: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: "700",
-    marginTop: spacing.md,
-    textAlign: "center",
+  treeWrap: {
+    paddingBottom: spacing.xl,
+    position: "relative",
   },
 });
