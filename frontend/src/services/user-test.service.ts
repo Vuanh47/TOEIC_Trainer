@@ -2,6 +2,7 @@ import { apiRequest } from './api.client';
 import { 
   UserTestListResponse, 
   UserTestDetailResponse, 
+  UserTestLeaderboardResponse,
   TestAttemptApiResponse, 
   TestAttemptListApiResponse, 
   SubmitTestAttemptRequest,
@@ -24,6 +25,12 @@ export class UserTestService {
 
   async getPublishedTests(): Promise<UserTestListResponse> {
     return apiRequest<UserTestListResponse>('/api/users/tests/published', {
+      headers: this.headers,
+    });
+  }
+
+  async getLeaderboard(): Promise<UserTestLeaderboardResponse> {
+    return apiRequest<UserTestLeaderboardResponse>('/api/users/tests/leaderboard', {
       headers: this.headers,
     });
   }

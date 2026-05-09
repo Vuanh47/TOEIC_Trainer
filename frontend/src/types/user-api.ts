@@ -316,6 +316,15 @@ export type UserTestPartQuestionResponse = {
   }[];
 };
 
+export type UserTestLeaderboardItem = {
+  userId: number;
+  fullName: string;
+  avatarUrl: string | null;
+  totalScore: number;
+  totalAttempts: number;
+  position: number;
+};
+
 export type TestAttemptResponse = {
   attemptId: number;
   testId: number;
@@ -383,6 +392,7 @@ export type FlashcardCollectionResponse = ApiResponse<FlashcardCollectionApiItem
 
 export type UserTestListResponse = ApiResponse<UserTestResponse[]>;
 export type UserTestDetailResponse = ApiResponse<UserTestResponse>;
+export type UserTestLeaderboardResponse = ApiResponse<UserTestLeaderboardItem[]>;
 export type TestAttemptApiResponse = ApiResponse<TestAttemptResponse>;
 export type TestAttemptListApiResponse = ApiResponse<TestAttemptResponse[]>;
 export type QuestionExplainApiResponse = ApiResponse<QuestionExplainResponse>;
