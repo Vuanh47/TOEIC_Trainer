@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -45,6 +46,13 @@ export default function PracticeScreen() {
     loadRoadmap();
   }, [auth.accessToken, isHydrated, loadRoadmap]);
 
+  useFocusEffect(
+    useCallback(() => {
+      if (!isHydrated || !auth.accessToken) return;
+      loadRoadmap();
+    }, [auth.accessToken, isHydrated, loadRoadmap]),
+  );
+
   const moduleNodes = useMemo<ModuleNode[]>(() => {
     if (!roadmap) return [];
 
@@ -73,6 +81,9 @@ export default function PracticeScreen() {
     moduleNodes[0]?.module ??
     null;
   const completionRatio = `${moduleNodes.filter((item) => item.isCompleted).length}/${moduleNodes.length || 0}`;
+  const activeMilestone = roadmap?.milestones.find((milestone) =>
+    milestone.modules.some((module) => module.moduleId === currentModule?.moduleId),
+  );
 
   const openModule = (moduleId: number) => {
     pushRoute(`/user/roadmap?moduleId=${moduleId}`);
@@ -95,9 +106,20 @@ export default function PracticeScreen() {
         <Text style={styles.heroEyebrow}>LO TRINH DANG CHON</Text>
         <Text style={styles.title}>{roadmap?.learningPathTitle ?? "Chua chon lo trinh hoc"}</Text>
         <Text style={styles.subtitle}>
-          Khi bam lo trinh o trang home, practice se hien roadmap tuong ung tu backend va dan xuong theo
-          tung module.
+          Practice se luon dong bo roadmap ACTIVE moi nhat tu backend moi khi ban mo lai man hinh nay.
         </Text>
+
+        <View style={styles.currentPathBlock}>
+          <Text style={styles.currentPathLabel}>
+            {roadmap?.learningPathCode ?? "ROADMAP"}
+          </Text>
+          <Text style={styles.currentPathTitle}>
+            {currentModule?.title ?? "Chua co module hien tai"}
+          </Text>
+          <Text style={styles.currentPathMeta}>
+            {activeMilestone?.title ?? "Chua co milestone"} • {currentModule?.moduleType ?? "MODULE"}
+          </Text>
+        </View>
 
         <View style={styles.summaryGrid}>
           <View style={styles.summaryCard}>
@@ -124,7 +146,11 @@ export default function PracticeScreen() {
         />
       </SurfaceCard>
 
-      <Pressable onPress={openCurrentPractice} style={styles.primaryButton}>
+      <Pressable
+        disabled={!currentModule}
+        onPress={openCurrentPractice}
+        style={[styles.primaryButton, !currentModule ? styles.primaryButtonDisabled : null]}
+      >
         <Ionicons color={colors.surface} name="play-circle-outline" size={18} />
         <Text style={styles.primaryButtonText}>Tiep tuc module hien tai</Text>
       </Pressable>
@@ -263,6 +289,32 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 28,
     right: "50%",
   },
+  currentPathBlock: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    marginBottom: spacing.lg,
+    padding: spacing.md,
+  },
+  currentPathLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1,
+    marginBottom: spacing.xs,
+    textTransform: "uppercase",
+  },
+  currentPathMeta: {
+    color: colors.textMuted,
+    fontSize: 13,
+    marginTop: 4,
+  },
+  currentPathTitle: {
+    color: colors.primaryDark,
+    fontSize: 18,
+    fontWeight: "900",
+  },
   currentTag: {
     backgroundColor: colors.primaryDark,
     borderRadius: radius.pill,
@@ -390,6 +442,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: spacing.lg,
     paddingVertical: 15,
+  },
+  primaryButtonDisabled: {
+    backgroundColor: colors.surfaceDisabled,
   },
   primaryButtonText: {
     color: colors.surface,

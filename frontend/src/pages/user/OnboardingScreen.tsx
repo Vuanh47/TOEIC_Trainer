@@ -27,7 +27,9 @@ export default function OnboardingScreen() {
 
     try {
       setSubmitting(true);
-      await assignRecommendedPath(auth.accessToken, selectedGoal.targetScore);
+      await assignRecommendedPath(auth.accessToken, {
+        targetScore: selectedGoal.targetScore,
+      });
       replaceRoute("/user/home");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Khong the tao lo trinh.";

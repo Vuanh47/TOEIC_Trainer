@@ -135,7 +135,13 @@ export default function HomeScreen() {
 
     try {
       setAssigningPath(true);
-      await assignRecommendedPath(auth.accessToken, selectedPath.targetScore);
+      const response = await assignRecommendedPath(auth.accessToken, {
+        learningPathId: selectedPath.id,
+        targetScore: selectedPath.targetScore,
+      });
+      setSelectedPathId(response.data.learningPathId);
+      const roadmapResponse = await getUserRoadmap(auth.accessToken);
+      setRoadmap(roadmapResponse.data ?? null);
       Alert.alert("Lo trinh", `Da chon ${selectedPath.title}.`);
       pushRoute("/user/practice");
     } catch (error) {
@@ -312,7 +318,7 @@ export default function HomeScreen() {
                     {isChampion ? (
                       <Ionicons
                         color="#F5B942"
-                        name="crown"
+                        name="trophy"
                         size={22}
                         style={styles.crownIcon}
                       />
