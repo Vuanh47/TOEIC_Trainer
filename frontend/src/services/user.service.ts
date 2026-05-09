@@ -54,15 +54,15 @@ export function getMyFlashcards(accessToken: string) {
 
 export function assignRecommendedPath(
   accessToken: string,
-  targetScore?: number,
+  payload?: {
+    learningPathId?: number;
+    targetScore?: number;
+  },
 ) {
   return apiRequest<UserLearningPathAssignmentResponse>(
     "/api/placement-onboarding/assign-path",
     {
-      body:
-        typeof targetScore === "number"
-          ? JSON.stringify({ targetScore })
-          : undefined,
+      body: payload ? JSON.stringify(payload) : undefined,
       headers: buildAuthHeaders(accessToken),
       method: "POST",
     },
