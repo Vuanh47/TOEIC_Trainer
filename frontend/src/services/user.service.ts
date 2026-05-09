@@ -4,6 +4,7 @@ import {
   FlashcardCollectionResponse,
   FlashcardResponse,
   FlashcardsResponse,
+  LearningPathListResponse,
   LessonProgressUpdateResponse,
   ModuleUnlockResponse,
   UserLessonsResponse,
@@ -11,6 +12,9 @@ import {
   UserLearningPathAssignmentResponse,
   UserProfileResponse,
   UserRoadmapResponse,
+  UserGrammarListResponse,
+  UserGrammarDetailResponse,
+  UserFavoriteGrammarTitleListResponse,
 } from "@/src/types/user-api";
 
 function buildAuthHeaders(accessToken: string) {
@@ -21,6 +25,13 @@ function buildAuthHeaders(accessToken: string) {
 
 export function getMyProfile(accessToken: string) {
   return apiRequest<UserProfileResponse>("/api/users/me", {
+    headers: buildAuthHeaders(accessToken),
+    method: "GET",
+  });
+}
+
+export function getLearningPaths(accessToken: string) {
+  return apiRequest<LearningPathListResponse>("/api/admin/learning-paths", {
     headers: buildAuthHeaders(accessToken),
     method: "GET",
   });
@@ -41,7 +52,10 @@ export function getMyFlashcards(accessToken: string) {
   });
 }
 
-export function assignRecommendedPath(accessToken: string, targetScore?: number) {
+export function assignRecommendedPath(
+  accessToken: string,
+  targetScore?: number,
+) {
   return apiRequest<UserLearningPathAssignmentResponse>(
     "/api/placement-onboarding/assign-path",
     {
@@ -51,7 +65,7 @@ export function assignRecommendedPath(accessToken: string, targetScore?: number)
           : undefined,
       headers: buildAuthHeaders(accessToken),
       method: "POST",
-    }
+    },
   );
 }
 
@@ -80,8 +94,50 @@ export function getUserModuleContent(accessToken: string, moduleId: number) {
     {
       headers: buildAuthHeaders(accessToken),
       method: "GET",
-    }
+    },
   );
+}
+
+export function getUserGrammars(accessToken: string) {
+  return apiRequest<UserGrammarListResponse>("/api/users/grammars", {
+    headers: buildAuthHeaders(accessToken),
+    method: "GET",
+  });
+}
+
+export function getUserGrammarDetail(accessToken: string, grammarId: number) {
+  return apiRequest<UserGrammarDetailResponse>(`/api/users/grammars/${grammarId}`, {
+    headers: buildAuthHeaders(accessToken),
+    method: "GET",
+  });
+}
+
+export function addUserGrammarFavorite(accessToken: string, grammarId: number) {
+  return apiRequest(`/api/users/grammars/${grammarId}/favorite`, {
+    headers: buildAuthHeaders(accessToken),
+    method: "POST",
+  });
+}
+
+export function removeUserGrammarFavorite(accessToken: string, grammarId: number) {
+  return apiRequest(`/api/users/grammars/${grammarId}/favorite`, {
+    headers: buildAuthHeaders(accessToken),
+    method: "DELETE",
+  });
+}
+
+export function getUserFavoriteGrammars(accessToken: string) {
+  return apiRequest<UserGrammarListResponse>("/api/users/grammars/favorites/list", {
+    headers: buildAuthHeaders(accessToken),
+    method: "GET",
+  });
+}
+
+export function getUserFavoriteGrammarTitles(accessToken: string) {
+  return apiRequest<UserFavoriteGrammarTitleListResponse>("/api/users/grammars/favorites/titles", {
+    headers: buildAuthHeaders(accessToken),
+    method: "GET",
+  });
 }
 
 export function updateLessonProgress(
@@ -160,37 +216,59 @@ export function deleteMyFlashcard(accessToken: string, flashcardId: number) {
   });
 }
 
-export function getModuleFlashcardsForUser(accessToken: string, moduleId: number, keyword?: string) {
-  const suffix = keyword && keyword.trim().length > 0 ? `?keyword=${encodeURIComponent(keyword.trim())}` : "";
-  return apiRequest<FlashcardsResponse>(`/api/users/flashcards/modules/${moduleId}${suffix}`, {
-    headers: buildAuthHeaders(accessToken),
-    method: "GET",
-  });
+export function getModuleFlashcardsForUser(
+  accessToken: string,
+  moduleId: number,
+  keyword?: string,
+) {
+  const suffix =
+    keyword && keyword.trim().length > 0
+      ? `?keyword=${encodeURIComponent(keyword.trim())}`
+      : "";
+  return apiRequest<FlashcardsResponse>(
+    `/api/users/flashcards/modules/${moduleId}${suffix}`,
+    {
+      headers: buildAuthHeaders(accessToken),
+      method: "GET",
+    },
+  );
 }
 
 export function createFlashcardCollection(
   accessToken: string,
   payload: { name: string; description?: string },
 ) {
-  return apiRequest<FlashcardCollectionResponse>("/api/users/flashcards/collections", {
-    body: JSON.stringify(payload),
-    headers: buildAuthHeaders(accessToken),
-    method: "POST",
-  });
+  return apiRequest<FlashcardCollectionResponse>(
+    "/api/users/flashcards/collections",
+    {
+      body: JSON.stringify(payload),
+      headers: buildAuthHeaders(accessToken),
+      method: "POST",
+    },
+  );
 }
 
 export function getMyFlashcardCollections(accessToken: string) {
-  return apiRequest<FlashcardCollectionListResponse>("/api/users/flashcards/collections", {
-    headers: buildAuthHeaders(accessToken),
-    method: "GET",
-  });
+  return apiRequest<FlashcardCollectionListResponse>(
+    "/api/users/flashcards/collections",
+    {
+      headers: buildAuthHeaders(accessToken),
+      method: "GET",
+    },
+  );
 }
 
-export function getFlashcardCollectionDetail(accessToken: string, collectionId: number) {
-  return apiRequest<FlashcardCollectionResponse>(`/api/users/flashcards/collections/${collectionId}`, {
-    headers: buildAuthHeaders(accessToken),
-    method: "GET",
-  });
+export function getFlashcardCollectionDetail(
+  accessToken: string,
+  collectionId: number,
+) {
+  return apiRequest<FlashcardCollectionResponse>(
+    `/api/users/flashcards/collections/${collectionId}`,
+    {
+      headers: buildAuthHeaders(accessToken),
+      method: "GET",
+    },
+  );
 }
 
 export function updateFlashcardCollection(
@@ -198,14 +276,20 @@ export function updateFlashcardCollection(
   collectionId: number,
   payload: { name?: string; description?: string },
 ) {
-  return apiRequest<FlashcardCollectionResponse>(`/api/users/flashcards/collections/${collectionId}`, {
-    body: JSON.stringify(payload),
-    headers: buildAuthHeaders(accessToken),
-    method: "PUT",
-  });
+  return apiRequest<FlashcardCollectionResponse>(
+    `/api/users/flashcards/collections/${collectionId}`,
+    {
+      body: JSON.stringify(payload),
+      headers: buildAuthHeaders(accessToken),
+      method: "PUT",
+    },
+  );
 }
 
-export function deleteFlashcardCollection(accessToken: string, collectionId: number) {
+export function deleteFlashcardCollection(
+  accessToken: string,
+  collectionId: number,
+) {
   return apiRequest(`/api/users/flashcards/collections/${collectionId}`, {
     headers: buildAuthHeaders(accessToken),
     method: "DELETE",

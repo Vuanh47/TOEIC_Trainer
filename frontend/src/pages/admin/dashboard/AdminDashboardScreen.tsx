@@ -23,6 +23,7 @@ import { adminSidebarItems } from "@/src/pages/admin/dashboard/mock-data";
 import { logout } from "@/src/services/auth.service";
 import {
   AdminFlashcardService,
+  AdminGrammarService,
   AdminLearningModuleService,
   AdminLearningPathMilestoneService,
   AdminLearningPathService,
@@ -35,6 +36,7 @@ import {
 } from "@/src/services/admin";
 import {
   AdminFlashcardApiItem,
+  GrammarApiItem,
   LearningModuleApiItem,
   LearningPathApiItem,
   LearningPathMilestoneApiItem,
@@ -166,6 +168,14 @@ const flashcardFields: AdminField[] = [
   { name: "meaningVi", label: "Meaning VI", type: "text", required: true },
   { name: "pronunciation", label: "Pronunciation", type: "text" },
   { name: "exampleSentence", label: "Example sentence", type: "textarea" },
+  { name: "active", label: "Active", type: "switch" },
+];
+
+const grammarFields: AdminField[] = [
+  { name: "title", label: "Title", type: "text", required: true },
+  { name: "content", label: "Content", type: "textarea", required: true },
+  { name: "tips", label: "Tips", type: "textarea" },
+  { name: "example", label: "Example", type: "textarea" },
   { name: "active", label: "Active", type: "switch" },
 ];
 
@@ -319,6 +329,7 @@ export default function AdminDashboardScreen() {
     [],
   );
   const [modules, setModules] = useState<LearningModuleApiItem[]>([]);
+  const [grammars, setGrammars] = useState<GrammarApiItem[]>([]);
   const [milestoneModules, setMilestoneModules] = useState<
     MilestoneModuleApiItem[]
   >([]);
@@ -356,6 +367,7 @@ export default function AdminDashboardScreen() {
     if (!auth.accessToken) return null;
     return {
       flashcards: new AdminFlashcardService(auth.accessToken),
+      grammars: new AdminGrammarService(auth.accessToken),
       milestones: new AdminLearningPathMilestoneService(auth.accessToken),
       modules: new AdminLearningModuleService(auth.accessToken),
       paths: new AdminLearningPathService(auth.accessToken),
@@ -452,18 +464,22 @@ export default function AdminDashboardScreen() {
       const [
         pathResponse,
         moduleResponse,
+        grammarResponse,
         questionResponse,
         permissionResponse,
       ] = await Promise.all([
         services.paths.getAll(),
         services.modules.getAll(),
+        services.grammars.getAll(),
         services.questions.getAll(),
         services.permissions.getAll(),
       ]);
       const nextPaths = pathResponse.data ?? [];
       const nextModules = moduleResponse.data ?? [];
+      const nextGrammars = grammarResponse.data ?? [];
       setPaths(nextPaths);
       setModules(nextModules);
+      setGrammars(nextGrammars);
       setQuestions(questionResponse.data ?? []);
       setPermissions(permissionResponse ?? []);
       setSelectedPathId((current) => current ?? nextPaths[0]?.id ?? null);
@@ -610,7 +626,7 @@ export default function AdminDashboardScreen() {
 
     loadBaseData();
     loadTests();
-  }, [loadBaseData]);
+  }, [loadBaseData, loadTests]);
 
   useEffect(() => {
     loadMilestones();
@@ -700,6 +716,18 @@ export default function AdminDashboardScreen() {
       sourceType: text(values, "sourceType") || null,
       sourceYear: numberValue(values, "sourceYear"),
     };
+  };
+
+  const getGrammarInitialValues = (item?: GrammarApiItem): FormValues => ({
+    active: item?.active ?? true,
+    content: item?.content ?? "",
+    example: item?.example ?? "",
+    tips: item?.tips ?? "",
+    title: item?.title ?? "",
+  });
+
+  const reloadGrammars = async () => {
+    await loadBaseData();
   };
 
   const renderSelector = <
@@ -1349,6 +1377,94 @@ export default function AdminDashboardScreen() {
     </View>
   );
 
+  const renderGrammars = () => (
+    <View style={styles.stack}>
+      <View style={styles.grammarTopBar}>
+        <View style={styles.summaryRow}>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Tong so</Text>
+            <Text style={styles.summaryValue}>{grammars.length}</Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Dang hien</Text>
+            <Text style={styles.summaryValue}>
+              {grammars.filter((item) => item.active).length}
+            </Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Tam an</Text>
+            <Text style={styles.summaryValue}>
+              {grammars.filter((item) => !item.active).length}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.grammarTopActions}>
+          <Pressable
+            disabled={working}
+            onPress={reloadGrammars}
+            style={styles.grammarGhostButton}
+          >
+            <Text style={styles.grammarGhostButtonText}>Tai lai</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <AdminCrudPanel
+        columns={[
+          { label: "Title", render: (item) => item.title },
+          { label: "Status", render: (item) => (item.active ? "Active" : "Inactive") },
+        ]}
+        fields={grammarFields}
+        getInitialValues={getGrammarInitialValues}
+        getItemId={(item) => item.id}
+        loading={loading}
+        onCreate={(values) =>
+          runAction(
+            () =>
+              services!.grammars
+                .create({
+                  active: boolValue(values, "active"),
+                  content: text(values, "content", true),
+                  example: nullableText(values, "example"),
+                  tips: nullableText(values, "tips"),
+                  title: text(values, "title", true),
+                })
+                .then(() => undefined),
+            reloadGrammars,
+          )
+        }
+        onDelete={(item) =>
+          confirmWeb(`Xoa grammar "${item.title}"?`)
+            ? runAction(
+                () => services!.grammars.delete(item.id).then(() => undefined),
+                reloadGrammars,
+              )
+            : Promise.resolve()
+        }
+        onRefresh={reloadGrammars}
+        onUpdate={(item, values) =>
+          runAction(
+            () =>
+              services!.grammars
+                .update(item.id, {
+                  active: boolValue(values, "active"),
+                  content: text(values, "content", true),
+                  example: nullableText(values, "example"),
+                  tips: nullableText(values, "tips"),
+                  title: text(values, "title", true),
+                })
+                .then(() => undefined),
+            reloadGrammars,
+          )
+        }
+        records={grammars}
+        subtitle="Chi hien thi title, status va action. Sua se mo modal."
+        title="Bang ngu phap"
+        working={working}
+      />
+    </View>
+  );
+
   const renderQuestions = () => (
     <View style={styles.stack}>
       <AdminCrudPanel
@@ -1703,6 +1819,7 @@ export default function AdminDashboardScreen() {
     if (activeSection === "paths") return renderPaths();
     if (activeSection === "milestones") return renderMilestones();
     if (activeSection === "modules") return renderModules();
+    if (activeSection === "grammars") return renderGrammars();
     if (activeSection === "content") return renderContent();
     if (activeSection === "questions") return renderQuestions();
     if (activeSection === "tests") return renderTests();
@@ -1740,6 +1857,10 @@ export default function AdminDashboardScreen() {
               <View style={styles.metricCard}>
                 <Text style={styles.metricValue}>{questions.length}</Text>
                 <Text style={styles.metricLabel}>Questions</Text>
+              </View>
+              <View style={styles.metricCard}>
+                <Text style={styles.metricValue}>{grammars.length}</Text>
+                <Text style={styles.metricLabel}>Grammars</Text>
               </View>
             </View>
           </View>
@@ -1869,6 +1990,438 @@ const styles = StyleSheet.create({
   selectorTextActive: {
     color: colors.text,
     fontWeight: "900",
+  },
+  detailCard: {
+    backgroundColor: "#10213A",
+    borderColor: "#2B4D7C",
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: spacing.md,
+  },
+  detailHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.md,
+    justifyContent: "space-between",
+    marginBottom: spacing.md,
+  },
+  detailTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  detailSubtitle: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  detailButton: {
+    alignItems: "center",
+    backgroundColor: "#2F6EA8",
+    borderRadius: 10,
+    justifyContent: "center",
+    minHeight: 40,
+    paddingHorizontal: spacing.md,
+  },
+  detailButtonText: {
+    color: colors.surface,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  detailGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
+  },
+  detailItem: {
+    backgroundColor: "#0D1627",
+    borderColor: "#26374F",
+    borderRadius: 12,
+    borderWidth: 1,
+    flex: 1,
+    minWidth: 220,
+    padding: spacing.md,
+  },
+  detailItemWide: {
+    backgroundColor: "#0D1627",
+    borderColor: "#26374F",
+    borderRadius: 12,
+    borderWidth: 1,
+    flexBasis: "100%",
+    padding: spacing.md,
+  },
+  detailLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "800",
+    marginBottom: spacing.xs,
+    textTransform: "uppercase",
+  },
+  detailValue: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 20,
+  },
+  grammarWorkspace: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.lg,
+    alignItems: "flex-start",
+  },
+  grammarTopBar: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
+    justifyContent: "space-between",
+  },
+  grammarTopActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    marginLeft: "auto",
+  },
+  grammarListCard: {
+    backgroundColor: "#111C30",
+    borderColor: "#283A55",
+    borderRadius: 18,
+    borderWidth: 1,
+    flexBasis: 320,
+    flexGrow: 1,
+    flexShrink: 1,
+    maxWidth: 380,
+    padding: spacing.md,
+  },
+  grammarDetailCard: {
+    backgroundColor: "#13233C",
+    borderColor: "#2B4264",
+    borderRadius: 18,
+    borderWidth: 1,
+    flex: 1,
+    flexBasis: 560,
+    flexGrow: 999,
+    flexShrink: 1,
+    minHeight: 520,
+    minWidth: 0,
+    padding: spacing.lg,
+  },
+  grammarTableWrap: {
+    backgroundColor: "#111C30",
+    borderColor: "#283A55",
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: spacing.lg,
+  },
+  grammarTableScroller: {
+    borderColor: "#22364F",
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  grammarTable: {
+    backgroundColor: "#0F1B2E",
+    minWidth: 1480,
+  },
+  grammarTableHeaderRow: {
+    backgroundColor: "#16243A",
+    borderBottomColor: "#22364F",
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    paddingHorizontal: spacing.md,
+    paddingVertical: 14,
+  },
+  grammarTableDataRow: {
+    borderBottomColor: "#22364F",
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  grammarTableDataRowActive: {
+    backgroundColor: "rgba(47,110,168,0.12)",
+  },
+  grammarTableEmptyRow: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 88,
+    paddingHorizontal: spacing.md,
+  },
+  grammarHeaderCell: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "800",
+    paddingRight: spacing.md,
+    textTransform: "uppercase",
+  },
+  grammarBodyCell: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "600",
+    lineHeight: 22,
+    paddingRight: spacing.md,
+  },
+  grammarIdCol: {
+    width: 72,
+  },
+  grammarTitleCol: {
+    width: 220,
+  },
+  grammarContentCol: {
+    width: 360,
+  },
+  grammarTipsCol: {
+    width: 280,
+  },
+  grammarExampleCol: {
+    width: 280,
+  },
+  grammarStatusCol: {
+    width: 120,
+  },
+  grammarActionsCol: {
+    width: 180,
+  },
+  grammarStatusCellWrap: {
+    alignItems: "flex-start",
+    justifyContent: "center",
+  },
+  grammarActionsRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  grammarMiniPrimaryButton: {
+    alignItems: "center",
+    backgroundColor: "#2F6EA8",
+    borderRadius: 8,
+    justifyContent: "center",
+    minHeight: 36,
+    minWidth: 72,
+    paddingHorizontal: 12,
+  },
+  grammarMiniPrimaryButtonText: {
+    color: colors.surface,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  grammarBlockHeader: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
+    justifyContent: "space-between",
+    marginBottom: spacing.md,
+  },
+  grammarBlockTitle: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  grammarBlockSubtitle: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 4,
+  },
+  grammarHeaderActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    justifyContent: "flex-start",
+  },
+  grammarGhostButton: {
+    alignItems: "center",
+    backgroundColor: "#16243A",
+    borderColor: "#304764",
+    borderRadius: 10,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 40,
+    paddingHorizontal: spacing.md,
+  },
+  grammarGhostButtonText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  grammarPrimaryButton: {
+    alignItems: "center",
+    backgroundColor: "#2F6EA8",
+    borderRadius: 10,
+    justifyContent: "center",
+    minHeight: 40,
+    paddingHorizontal: spacing.md,
+  },
+  grammarPrimaryButtonText: {
+    color: colors.surface,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  grammarDangerButton: {
+    alignItems: "center",
+    backgroundColor: "rgba(239,68,68,0.16)",
+    borderColor: "rgba(239,68,68,0.36)",
+    borderRadius: 10,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 40,
+    paddingHorizontal: spacing.md,
+  },
+  grammarDangerButtonText: {
+    color: "#FFB4B4",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  grammarList: {
+    gap: spacing.sm,
+  },
+  grammarListItem: {
+    backgroundColor: "#0D1627",
+    borderColor: "#23354F",
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: spacing.md,
+  },
+  grammarListItemActive: {
+    backgroundColor: "#173155",
+    borderColor: colors.accent,
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+  },
+  grammarListItemTop: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+    justifyContent: "space-between",
+  },
+  grammarListItemTitle: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "800",
+    paddingRight: spacing.sm,
+  },
+  grammarListItemExcerpt: {
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: spacing.sm,
+  },
+  grammarStatusBadge: {
+    borderRadius: 999,
+    fontSize: 11,
+    fontWeight: "900",
+    overflow: "hidden",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    textTransform: "uppercase",
+  },
+  grammarStatusBadgeOn: {
+    backgroundColor: "rgba(34,197,94,0.18)",
+    color: "#9EF0B7",
+  },
+  grammarStatusBadgeOff: {
+    backgroundColor: "rgba(148,163,184,0.18)",
+    color: "#D0D9E5",
+  },
+  grammarHero: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
+  },
+  grammarHeroMain: {
+    backgroundColor: "#0F1B2E",
+    borderColor: "#22364F",
+    borderRadius: 16,
+    borderWidth: 1,
+    flex: 1,
+    flexBasis: 380,
+    minWidth: 0,
+    padding: spacing.lg,
+  },
+  grammarHeroTitle: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: "900",
+    marginBottom: spacing.sm,
+  },
+  grammarHeroContent: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "600",
+    lineHeight: 24,
+  },
+  grammarMetaCard: {
+    backgroundColor: "#0F1B2E",
+    borderColor: "#22364F",
+    borderRadius: 16,
+    borderWidth: 1,
+    flexBasis: 220,
+    flexGrow: 1,
+    justifyContent: "center",
+    minWidth: 220,
+    padding: spacing.lg,
+  },
+  grammarMetaLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "800",
+    marginBottom: spacing.xs,
+    textTransform: "uppercase",
+  },
+  grammarMetaValue: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: "900",
+    lineHeight: 24,
+  },
+  grammarInfoGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
+    marginTop: spacing.md,
+  },
+  grammarInfoCard: {
+    backgroundColor: "#0F1B2E",
+    borderColor: "#22364F",
+    borderRadius: 16,
+    borderWidth: 1,
+    flex: 1,
+    minWidth: 260,
+    padding: spacing.lg,
+  },
+  grammarMetaList: {
+    gap: spacing.sm,
+  },
+  grammarMetaRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  grammarMetaRowLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  grammarMetaRowValue: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  grammarInfoLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "800",
+    marginBottom: spacing.sm,
+    textTransform: "uppercase",
+  },
+  grammarInfoValue: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "600",
+    lineHeight: 24,
   },
   uploadBox: {
     backgroundColor: "#10213A",

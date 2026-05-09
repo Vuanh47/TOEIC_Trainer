@@ -4,6 +4,7 @@ export const adminSidebarItems: AdminSidebarItem[] = [
   { id: 'paths', icon: 'map-outline', label: 'Learning Paths' },
   { id: 'milestones', icon: 'flag-outline', label: 'Milestones' },
   { id: 'modules', icon: 'albums-outline', label: 'Modules' },
+  { id: 'grammars', icon: 'book-outline', label: 'Grammars' },
   { id: 'content', icon: 'document-text-outline', label: 'Content APIs' },
   { id: 'questions', icon: 'help-circle-outline', label: 'Questions' },
   { id: 'tests', icon: 'list-outline', label: 'Tests' },

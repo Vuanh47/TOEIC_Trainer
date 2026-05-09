@@ -39,6 +39,7 @@ export type AdminSectionKey =
   | 'paths'
   | 'milestones'
   | 'modules'
+  | 'grammars'
   | 'content'
   | 'questions'
   | 'tests'

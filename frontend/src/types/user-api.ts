@@ -1,5 +1,18 @@
 import { ApiResponse } from "@/src/types/auth";
 
+export type LearningPath = {
+  id: number;
+  code: string;
+  title: string;
+  description: string;
+  targetScore: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type LearningPathListResponse = ApiResponse<LearningPath[]>;
+
 export type UserProfile = {
   id: number;
   email: string;
@@ -217,6 +230,24 @@ export type UserModuleContent = {
   practiceSets: PracticeSetApiItem[];
 };
 
+export type UserGrammarListItem = {
+  id: number;
+  title: string;
+  content: string;
+  tips: string | null;
+  example: string | null;
+  active: boolean;
+  isFavorite: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type UserFavoriteGrammarTitleItem = {
+  id: number;
+  savedAt: string;
+  title: string;
+};
+
 export type LessonProgressUpdate = {
   lessonId: number;
   moduleId: number;
@@ -361,3 +392,7 @@ export type UserPracticeSetDetailApiResponse = ApiResponse<UserPracticeSetDetail
 export type UserPracticeAttemptApiResponse = ApiResponse<UserPracticeAttemptResponse>;
 export type UserPracticeAttemptListApiResponse = ApiResponse<UserPracticeAttemptResponse[]>;
 export type UserPracticeAttemptDetailApiResponse = ApiResponse<UserPracticeAttemptDetailResponseData>;
+
+export type UserGrammarListResponse = ApiResponse<UserGrammarListItem[]>;
+export type UserGrammarDetailResponse = ApiResponse<UserGrammarListItem>;
+export type UserFavoriteGrammarTitleListResponse = ApiResponse<UserFavoriteGrammarTitleItem[]>;

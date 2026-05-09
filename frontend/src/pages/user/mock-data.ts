@@ -11,31 +11,31 @@ export const userProfile = {
 export const goalPlans: GoalPlan[] = [
   {
     accentColor: "#CFE0FF",
-    description: "Danh cho nguoi moi bat dau hoac muon cung co lai kien thuc nen tang co ban nhat.",
+    description: "Dành cho người mới bắt đầu hoặc muốn củng cố lại kiến thức nền tảng cơ bản nhất.",
     id: "goal-300",
-    level: "Cap do 1",
-    subtitle: "Hanh trinh bat dau tu day",
+    level: "Cấp độ 1",
+    subtitle: "Hành trình bắt đầu từ đây",
     targetScore: 300,
-    title: "Muc tieu 300+",
+    title: "Mục tiêu 300+",
   },
   {
     accentColor: "#D8F6D9",
-    badge: "Pho bien nhat",
-    description: "Dat chuan dau ra dai hoc va tu tin giao tiep trong moi truong cong so quoc te.",
+    badge: "Phổ biến nhất",
+    description: "Đạt chuẩn đầu ra đại học và tự tin giao tiếp trong môi trường công sở quốc tế.",
     id: "goal-500",
-    level: "Cap do 2",
-    subtitle: "Danh cho ban da co nen tang",
+    level: "Cấp độ 2",
+    subtitle: "Dành cho bạn đã có nền tảng",
     targetScore: 500,
-    title: "Muc tieu 500+",
+    title: "Mục tiêu 500+",
   },
   {
     accentColor: "#E2E5FF",
-    description: "But pha gioi han, chinh phuc cac vi tri quan ly va hoc bong quoc te danh gia.",
+    description: "Bứt phá giới hạn, chinh phục các vị trí quản lý và học bổng quốc tế danh giá.",
     id: "goal-800",
-    level: "Cap do 3",
-    subtitle: "Tong on tang toc de ve dich",
+    level: "Cấp độ 3",
+    subtitle: "Tổng ôn tăng tốc để về đích",
     targetScore: 800,
-    title: "Muc tieu 800+",
+    title: "Mục tiêu 800+",
   },
 ];
 
@@ -45,11 +45,36 @@ export const focusAreas = [
 ];
 
 export const achievementCards = [
-  { icon: "medal-outline", locked: false, title: "Chuoi hoc 7 ngay", subtitle: "Consistency master", tint: "#A7FF9B" },
-  { icon: "book-outline", locked: false, title: "Thanh tu vung", subtitle: "1,000+ words learnt", tint: "#D3DFFF" },
-  { icon: "flash-outline", locked: false, title: "Phan xa nhanh", subtitle: "Blitz drill expert", tint: "#9DFF9D" },
-  { icon: "lock-closed-outline", locked: true, title: "Chuyen gia nghe", subtitle: "Locked", tint: "#EAEAF2" },
+  { icon: "medal-outline", locked: false, title: "Chuỗi học 7 ngày", subtitle: "Học đều mỗi ngày", tint: "#A7FF9B" },
+  { icon: "book-outline", locked: false, title: "Thành tựu từ vựng", subtitle: "1.000+ từ đã học", tint: "#D3DFFF" },
+  { icon: "flash-outline", locked: false, title: "Phản xạ nhanh", subtitle: "Luyện nhanh nổi bật", tint: "#9DFF9D" },
+  { icon: "lock-closed-outline", locked: true, title: "Chuyên gia nghe", subtitle: "Chưa mở khóa", tint: "#EAEAF2" },
 ];
+
+export const leaderboardEntries = [
+  { id: "top-1", name: "Linh", points: 1280, streak: 21, rank: 1 },
+  { id: "top-2", name: "Minh", points: 1190, streak: 16, rank: 2 },
+  { id: "top-3", name: "Bảo", points: 1110, streak: 14, rank: 3 },
+  { id: "top-4", name: "Bạn", points: 980, streak: 7, rank: 4 },
+];
+
+export const grammarCategoryTemplates = {
+  examples: [
+    "The report must be submitted before noon.",
+    "If the meeting is postponed, the team will receive an email update.",
+    "Our clients are looking for a more efficient process.",
+  ],
+  formulas: [
+    "Subject + modal verb + base verb",
+    "If + present simple, will + base verb",
+    "Adjective + noun / adverb + verb",
+  ],
+  tips: [
+    "Tìm từ khóa xuất hiện lặp lại trong câu hỏi và đáp án.",
+    "Ưu tiên nhận diện loại từ trước khi chọn đáp án.",
+    "Nếu gặp câu dài, tách thành 2 cụm nghĩa để đọc nhanh hơn.",
+  ],
+};
 
 export const flashcards: FlashcardItem[] = [
   {
