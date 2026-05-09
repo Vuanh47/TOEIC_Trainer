@@ -34,12 +34,15 @@ public class PlacementOnboardingService {
     private final UserLearningPathMapper userLearningPathMapper;
 
     @Transactional
-    public UserLearningPathResponse assignRecommendedLearningPath(String email, Integer requestedTargetScore) {
+    public UserLearningPathResponse assignRecommendedLearningPath(
+            String email,
+            Long requestedLearningPathId,
+            Integer requestedTargetScore
+    ) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        Integer recommendedTargetScore = resolveRecommendedTargetScore(user, requestedTargetScore);
-        LearningPath learningPath = selectLearningPath(recommendedTargetScore);
+        LearningPath learningPath = resolveLearningPath(user, requestedLearningPathId, requestedTargetScore);
 
         archiveActivePaths(user.getId());
 
@@ -51,6 +54,18 @@ public class PlacementOnboardingService {
 
         UserLearningPath saved = userLearningPathRepository.save(assignment);
         return userLearningPathMapper.toResponse(saved);
+    }
+
+    private LearningPath resolveLearningPath(User user, Long requestedLearningPathId, Integer requestedTargetScore) {
+        if (requestedLearningPathId != null) {
+            LearningPath learningPath = learningPathRepository.findByIdAndActiveTrue(requestedLearningPathId)
+                    .orElseThrow(() -> new AppException(ErrorCode.LEARNING_PATH_NOT_FOUND));
+            user.setTargetScore(learningPath.getTargetScore());
+            return learningPath;
+        }
+
+        Integer recommendedTargetScore = resolveRecommendedTargetScore(user, requestedTargetScore);
+        return selectLearningPath(recommendedTargetScore);
     }
 
     private Integer resolveRecommendedTargetScore(User user, Integer requestedTargetScore) {
