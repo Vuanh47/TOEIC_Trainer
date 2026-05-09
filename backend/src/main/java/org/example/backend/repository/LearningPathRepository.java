@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface LearningPathRepository extends JpaRepository<LearningPath, Long> {
+	Optional<LearningPath> findByIdAndActiveTrue(Long id);
+
 	Optional<LearningPath> findFirstByActiveTrueAndTargetScoreGreaterThanEqualOrderByTargetScoreAsc(Integer score);
 
 	Optional<LearningPath> findFirstByActiveTrueOrderByTargetScoreDesc();

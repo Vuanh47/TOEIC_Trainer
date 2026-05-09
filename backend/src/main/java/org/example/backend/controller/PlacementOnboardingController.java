@@ -28,9 +28,11 @@ public class PlacementOnboardingController {
             Authentication authentication,
             @RequestBody(required = false) AssignLearningPathRequest request
     ) {
+        Long learningPathId = request == null ? null : request.getLearningPathId();
         Integer targetScore = request == null ? null : request.getTargetScore();
         UserLearningPathResponse response = placementOnboardingService.assignRecommendedLearningPath(
                 authentication.getName(),
+                learningPathId,
                 targetScore
         );
         return ApiResponseUtil.success(response, SuccessCode.LEARNING_PATH_ASSIGNED);
