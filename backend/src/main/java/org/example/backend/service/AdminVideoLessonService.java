@@ -12,6 +12,8 @@ import org.example.backend.enums.ErrorCode;
 import org.example.backend.exception.AppException;
 import org.example.backend.mapper.VideoLessonMapper;
 import org.example.backend.repository.LearningModuleRepository;
+import org.example.backend.repository.UserVideoProgressRepository;
+import org.example.backend.repository.VideoNoteRepository;
 import org.example.backend.repository.VideoLessonRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +26,8 @@ public class AdminVideoLessonService {
 
     private final VideoLessonRepository videoLessonRepository;
     private final LearningModuleRepository learningModuleRepository;
+    private final UserVideoProgressRepository userVideoProgressRepository;
+    private final VideoNoteRepository videoNoteRepository;
     private final VideoLessonMapper videoLessonMapper;
     private final CloudinaryUploadService cloudinaryUploadService;
 
@@ -126,6 +130,8 @@ public class AdminVideoLessonService {
     @Transactional
     public void deleteVideoLesson(Long videoLessonId) {
         VideoLesson videoLesson = findVideoLesson(videoLessonId);
+        userVideoProgressRepository.deleteByLessonId(videoLessonId);
+        videoNoteRepository.deleteByLessonId(videoLessonId);
         videoLessonRepository.delete(videoLesson);
     }
 
