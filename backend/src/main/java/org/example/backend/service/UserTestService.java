@@ -8,11 +8,10 @@ import org.example.backend.enums.AttemptStatus;
 import org.example.backend.enums.ErrorCode;
 import org.example.backend.exception.AppException;
 import org.example.backend.repository.*;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -217,6 +216,18 @@ public class UserTestService {
 
         r.setAnswers(details);
         return r;
+    }
+
+    @Transactional(readOnly = true)
+    public List<org.example.backend.dto.response.UserTestLeaderboardResponse> getLeaderboardTop3() {
+        List<org.example.backend.dto.response.UserTestLeaderboardResponse> leaderboard =
+                userTestAttemptRepository.findLeaderboard(PageRequest.of(0, 3));
+
+        for (int i = 0; i < leaderboard.size(); i++) {
+            leaderboard.get(i).setPosition(i + 1);
+        }
+
+        return leaderboard;
     }
 
     private org.example.backend.dto.response.TestAttemptResponse.QuestionAnswerResult buildQuestionAnswerResult(UserTestAnswer u) {
