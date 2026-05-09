@@ -18,66 +18,85 @@ import UserScreen from "@/src/components/user/UserScreen";
 import { useAuth } from "@/src/hooks/use-auth";
 import {
   addUserGrammarFavorite,
-  getUserFavoriteGrammarTitles,
+  getUserFavoriteGrammars,
   getUserGrammarDetail,
   getUserGrammars,
   removeUserGrammarFavorite,
 } from "@/src/services/user.service";
-import {
-  UserFavoriteGrammarTitleItem,
-  UserGrammarListItem,
-} from "@/src/types/user-api";
-import { pushRoute } from "@/src/utils/navigation";
+import { UserGrammarListItem } from "@/src/types/user-api";
 
-type LibraryTab = "vocabulary" | "grammar";
+type GrammarTab = "all" | "favorites";
 
 export default function GrammarScreen() {
   const { auth, isHydrated } = useAuth();
-  const [activeTab, setActiveTab] = useState<LibraryTab>("grammar");
+  const [activeTab, setActiveTab] = useState<GrammarTab>("all");
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [favoriteLoadingId, setFavoriteLoadingId] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [grammars, setGrammars] = useState<UserGrammarListItem[]>([]);
-  const [favoriteTitles, setFavoriteTitles] = useState<UserFavoriteGrammarTitleItem[]>([]);
+  const [allGrammars, setAllGrammars] = useState<UserGrammarListItem[]>([]);
+  const [favoriteGrammars, setFavoriteGrammars] = useState<UserGrammarListItem[]>([]);
   const [selectedGrammar, setSelectedGrammar] = useState<UserGrammarListItem | null>(null);
   const [detailVisible, setDetailVisible] = useState(false);
 
-  const loadGrammarData = useCallback(async () => {
+  const loadActiveTabData = useCallback(async () => {
     if (!auth.accessToken) return;
 
     try {
       setLoading(true);
       setErrorMessage(null);
-      const [grammarResponse, favoriteTitleResponse] = await Promise.all([
-        getUserGrammars(auth.accessToken),
-        getUserFavoriteGrammarTitles(auth.accessToken),
-      ]);
 
-      setGrammars(grammarResponse.data ?? []);
-      setFavoriteTitles(favoriteTitleResponse.data ?? []);
+      if (activeTab === "all") {
+        const response = await getUserGrammars(auth.accessToken);
+        setAllGrammars(response.data ?? []);
+      } else {
+        const response = await getUserFavoriteGrammars(auth.accessToken);
+        setFavoriteGrammars(response.data ?? []);
+      }
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Khong the tai danh sach ngu phap.",
+        error instanceof Error
+          ? error.message
+          : "Không thể tải danh sách ngữ pháp.",
       );
     } finally {
       setLoading(false);
+    }
+  }, [activeTab, auth.accessToken]);
+
+  const refreshAllSources = useCallback(async () => {
+    if (!auth.accessToken) return;
+
+    try {
+      const [allResponse, favoriteResponse] = await Promise.all([
+        getUserGrammars(auth.accessToken),
+        getUserFavoriteGrammars(auth.accessToken),
+      ]);
+
+      setAllGrammars(allResponse.data ?? []);
+      setFavoriteGrammars(favoriteResponse.data ?? []);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Không thể đồng bộ dữ liệu ngữ pháp.",
+      );
     }
   }, [auth.accessToken]);
 
   useEffect(() => {
     if (!isHydrated || !auth.accessToken) return;
-    loadGrammarData();
-  }, [auth.accessToken, isHydrated, loadGrammarData]);
+    loadActiveTabData();
+  }, [auth.accessToken, isHydrated, loadActiveTabData]);
 
-  const favoriteIds = useMemo(
-    () => new Set(favoriteTitles.map((item) => item.id)),
-    [favoriteTitles],
+  const visibleGrammars = useMemo(
+    () => (activeTab === "all" ? allGrammars : favoriteGrammars),
+    [activeTab, allGrammars, favoriteGrammars],
   );
 
-  const regularGrammars = useMemo(
-    () => grammars.filter((item) => !favoriteIds.has(item.id)),
-    [favoriteIds, grammars],
+  const favoriteIds = useMemo(
+    () => new Set(favoriteGrammars.map((item) => item.id)),
+    [favoriteGrammars],
   );
 
   const openGrammarDetail = useCallback(
@@ -93,7 +112,9 @@ export default function GrammarScreen() {
       } catch (error) {
         setSelectedGrammar(null);
         setErrorMessage(
-          error instanceof Error ? error.message : "Khong the tai chi tiet ngu phap.",
+          error instanceof Error
+            ? error.message
+            : "Không thể tải chi tiết ngữ pháp.",
         );
       } finally {
         setDetailLoading(false);
@@ -102,22 +123,37 @@ export default function GrammarScreen() {
     [auth.accessToken],
   );
 
-  const syncFavoriteState = useCallback(
-    (grammarId: number, nextFavorite: boolean) => {
-      setGrammars((current) =>
-        current.map((item) =>
-          item.id === grammarId ? { ...item, isFavorite: nextFavorite } : item,
-        ),
-      );
+  const syncFavoriteState = useCallback((grammarId: number, nextFavorite: boolean) => {
+    setAllGrammars((current) =>
+      current.map((item) =>
+        item.id === grammarId ? { ...item, isFavorite: nextFavorite } : item,
+      ),
+    );
 
-      setSelectedGrammar((current) =>
-        current && current.id === grammarId
-          ? { ...current, isFavorite: nextFavorite }
-          : current,
-      );
-    },
-    [],
-  );
+    setFavoriteGrammars((current) => {
+      if (nextFavorite) {
+        const existing = current.find((item) => item.id === grammarId);
+        if (existing) {
+          return current.map((item) =>
+            item.id === grammarId ? { ...item, isFavorite: true } : item,
+          );
+        }
+
+        const sourceItem = allGrammars.find((item) => item.id === grammarId);
+        return sourceItem
+          ? [{ ...sourceItem, isFavorite: true }, ...current]
+          : current;
+      }
+
+      return current.filter((item) => item.id !== grammarId);
+    });
+
+    setSelectedGrammar((current) =>
+      current && current.id === grammarId
+        ? { ...current, isFavorite: nextFavorite }
+        : current,
+    );
+  }, [allGrammars]);
 
   const toggleFavorite = useCallback(
     async (grammarId: number, isFavorite: boolean) => {
@@ -134,49 +170,47 @@ export default function GrammarScreen() {
         }
 
         syncFavoriteState(grammarId, !isFavorite);
-        const favoriteTitleResponse = await getUserFavoriteGrammarTitles(auth.accessToken);
-        setFavoriteTitles(favoriteTitleResponse.data ?? []);
+        await refreshAllSources();
       } catch (error) {
         setErrorMessage(
-          error instanceof Error ? error.message : "Khong the cap nhat yeu thich.",
+          error instanceof Error
+            ? error.message
+            : "Không thể cập nhật trạng thái yêu thích.",
         );
       } finally {
         setFavoriteLoadingId(null);
       }
     },
-    [auth.accessToken, favoriteLoadingId, syncFavoriteState],
+    [auth.accessToken, favoriteLoadingId, refreshAllSources, syncFavoriteState],
   );
 
-  const renderGrammarCard = (item: UserGrammarListItem, tone: "favorite" | "regular") => {
+  const renderGrammarItem = (item: UserGrammarListItem) => {
     const isFavorite = item.isFavorite || favoriteIds.has(item.id);
 
     return (
       <Pressable
         key={item.id}
         onPress={() => openGrammarDetail(item.id)}
-        style={[
-          styles.grammarCard,
-          tone === "favorite" ? styles.grammarCardFavorite : null,
-        ]}
+        style={styles.grammarItem}
       >
-        <View style={styles.grammarCardLeft}>
-          <View
-            style={[
-              styles.grammarCheck,
-              tone === "favorite" ? styles.grammarCheckFavorite : null,
-            ]}
-          >
-            <Ionicons color={colors.surface} name="checkmark" size={16} />
+        <View style={styles.grammarItemMain}>
+          <View style={styles.grammarIcon}>
+            <Ionicons color={colors.accent} name="book-outline" size={18} />
           </View>
-          <View style={styles.grammarCardCopy}>
+          <View style={styles.grammarCopy}>
             <Text numberOfLines={2} style={styles.grammarTitle}>
               {item.title}
             </Text>
-            <Text numberOfLines={2} style={styles.grammarSubtitle}>
-              {item.content}
-            </Text>
+            {activeTab === "all" ? (
+              <Text numberOfLines={2} style={styles.grammarSubtitle}>
+                {item.content}
+              </Text>
+            ) : (
+              <Text style={styles.grammarMeta}>Đã lưu để ôn tập nhanh</Text>
+            )}
           </View>
         </View>
+
         <Pressable
           hitSlop={10}
           onPress={() => toggleFavorite(item.id, isFavorite)}
@@ -188,7 +222,7 @@ export default function GrammarScreen() {
             <Ionicons
               color={isFavorite ? "#F5A623" : colors.textMuted}
               name={isFavorite ? "star" : "star-outline"}
-              size={24}
+              size={22}
             />
           )}
         </Pressable>
@@ -196,46 +230,58 @@ export default function GrammarScreen() {
     );
   };
 
+  const detailIsFavorite = selectedGrammar
+    ? selectedGrammar.isFavorite || favoriteIds.has(selectedGrammar.id)
+    : false;
+
   return (
     <>
       <UserScreen>
         <AppHeader
           leftIcon="chevron-back-outline"
           onLeftPress={() => router.back()}
-          rightSlot={<Ionicons color={colors.primaryDark} name="sparkles-outline" size={26} />}
-          subtitle="Ly thuyet tieng Anh"
-          title="TOEIC Trainer"
+          rightSlot={<Ionicons color={colors.primaryDark} name="library-outline" size={24} />}
+          subtitle="Thư viện ngữ pháp"
+          title="Ngữ pháp"
         />
 
         <SurfaceCard style={styles.heroCard}>
-          <Text style={styles.heroEyebrow}>Grammar Library</Text>
-          <Text style={styles.heroTitle}>Hoc ngu phap theo danh muc ro rang</Text>
+          <Text style={styles.heroEyebrow}>Ngữ pháp TOEIC</Text>
+          <Text style={styles.heroTitle}>Chọn cách xem phù hợp với bạn</Text>
           <Text style={styles.heroText}>
-            Tach rieng phan yeu thich va tat ca chu de de ban mo lai nhanh, doc nhanh va on tap de hon.
+            Xem toàn bộ chủ đề hoặc chỉ mở nhanh danh sách yêu thích. Chạm vào
+            tiêu đề để xem chi tiết.
           </Text>
 
           <View style={styles.tabRow}>
             <Pressable
-              onPress={() => {
-                setActiveTab("vocabulary");
-                pushRoute("/user/cards");
-              }}
+              onPress={() => setActiveTab("all")}
+              style={[styles.topTab, activeTab === "all" ? styles.topTabActive : null]}
+            >
+              <Text
+                style={[
+                  styles.topTabText,
+                  activeTab === "all" ? styles.topTabTextActive : null,
+                ]}
+              >
+                Tất cả
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setActiveTab("favorites")}
               style={[
                 styles.topTab,
-                activeTab === "vocabulary" ? styles.topTabActive : null,
+                activeTab === "favorites" ? styles.topTabActive : null,
               ]}
             >
               <Text
                 style={[
                   styles.topTabText,
-                  activeTab === "vocabulary" ? styles.topTabTextActive : null,
+                  activeTab === "favorites" ? styles.topTabTextActive : null,
                 ]}
               >
-                Tu vung
+                Yêu thích
               </Text>
-            </Pressable>
-            <Pressable style={[styles.topTab, styles.topTabActive]}>
-              <Text style={[styles.topTabText, styles.topTabTextActive]}>Ngu phap</Text>
             </Pressable>
           </View>
         </SurfaceCard>
@@ -243,7 +289,7 @@ export default function GrammarScreen() {
         {loading ? (
           <View style={styles.feedbackRow}>
             <ActivityIndicator color={colors.primaryDark} />
-            <Text style={styles.feedbackText}>Dang tai danh sach ngu phap...</Text>
+            <Text style={styles.feedbackText}>Đang tải danh sách ngữ pháp...</Text>
           </View>
         ) : null}
 
@@ -252,67 +298,34 @@ export default function GrammarScreen() {
         <SurfaceCard style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
             <View>
-              <Text style={styles.sectionTitle}>Yeu thich</Text>
+              <Text style={styles.sectionTitle}>
+                {activeTab === "all" ? "Tất cả ngữ pháp" : "Ngữ pháp yêu thích"}
+              </Text>
               <Text style={styles.sectionSubtitle}>
-                {favoriteTitles.length} muc da luu tu `/favorites/titles`
+                {activeTab === "all"
+                  ? "Danh sách chủ đề đang mở cho bạn"
+                  : "Chỉ hiển thị các tiêu đề bạn đã lưu"}
               </Text>
             </View>
-            <View style={styles.countPill}>
-              <Text style={styles.countPillText}>{favoriteTitles.length}</Text>
+
+            <View style={styles.sectionActions}>
+              <View style={styles.countPill}>
+                <Text style={styles.countPillText}>{visibleGrammars.length}</Text>
+              </View>
+              <Pressable onPress={loadActiveTabData} style={styles.reloadButton}>
+                <Ionicons color={colors.primaryDark} name="refresh-outline" size={18} />
+              </Pressable>
             </View>
-          </View>
-
-          {favoriteTitles.length > 0 ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.favoriteRow}
-            >
-              {favoriteTitles.map((item) => {
-                const fullGrammar =
-                  grammars.find((grammar) => grammar.id === item.id) ??
-                  ({
-                    active: true,
-                    content: "Mo de xem chi tiet ngu phap.",
-                    example: null,
-                    id: item.id,
-                    isFavorite: true,
-                    tips: null,
-                    title: item.title,
-                  } as UserGrammarListItem);
-
-                return (
-                  <View key={item.id} style={styles.favoriteCard}>
-                    {renderGrammarCard(fullGrammar, "favorite")}
-                    <Text style={styles.favoriteSavedAt}>Da luu: {item.savedAt}</Text>
-                  </View>
-                );
-              })}
-            </ScrollView>
-          ) : (
-            <Text style={styles.emptyText}>
-              Ban chua co ngu phap yeu thich. Bam vao icon sao de luu nhanh.
-            </Text>
-          )}
-        </SurfaceCard>
-
-        <SurfaceCard style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <View>
-              <Text style={styles.sectionTitle}>Tat ca ngu phap</Text>
-              <Text style={styles.sectionSubtitle}>
-                GET `/api/users/grammars` tra ve danh sach active kem `isFavorite`
-              </Text>
-            </View>
-            <Pressable onPress={loadGrammarData} style={styles.reloadButton}>
-              <Ionicons color={colors.primaryDark} name="refresh-outline" size={18} />
-            </Pressable>
           </View>
 
           <View style={styles.listColumn}>
-            {regularGrammars.map((item) => renderGrammarCard(item, "regular"))}
-            {!loading && regularGrammars.length === 0 ? (
-              <Text style={styles.emptyText}>Chua co ngu phap active de hien thi.</Text>
+            {visibleGrammars.map((item) => renderGrammarItem(item))}
+            {!loading && visibleGrammars.length === 0 ? (
+              <Text style={styles.emptyText}>
+                {activeTab === "all"
+                  ? "Chưa có ngữ pháp để hiển thị."
+                  : "Bạn chưa lưu ngữ pháp yêu thích nào."}
+              </Text>
             ) : null}
           </View>
         </SurfaceCard>
@@ -331,36 +344,23 @@ export default function GrammarScreen() {
             {detailLoading ? (
               <View style={styles.sheetLoading}>
                 <ActivityIndicator color={colors.primaryDark} />
-                <Text style={styles.feedbackText}>Dang tai chi tiet ngu phap...</Text>
+                <Text style={styles.feedbackText}>Đang tải chi tiết ngữ pháp...</Text>
               </View>
             ) : selectedGrammar ? (
               <ScrollView showsVerticalScrollIndicator={false}>
                 <View style={styles.sheetHeader}>
                   <View style={styles.sheetHeaderCopy}>
                     <Text style={styles.sheetTitle}>{selectedGrammar.title}</Text>
-                    <Text style={styles.sheetSubtitle}>Chi tiet ngu phap</Text>
+                    <Text style={styles.sheetSubtitle}>Chi tiết ngữ pháp</Text>
                   </View>
                   <View style={styles.sheetHeaderActions}>
                     <Pressable
-                      onPress={() =>
-                        toggleFavorite(
-                          selectedGrammar.id,
-                          selectedGrammar.isFavorite || favoriteIds.has(selectedGrammar.id),
-                        )
-                      }
+                      onPress={() => toggleFavorite(selectedGrammar.id, detailIsFavorite)}
                       style={styles.sheetIconButton}
                     >
                       <Ionicons
-                        color={
-                          selectedGrammar.isFavorite || favoriteIds.has(selectedGrammar.id)
-                            ? "#F5A623"
-                            : colors.textMuted
-                        }
-                        name={
-                          selectedGrammar.isFavorite || favoriteIds.has(selectedGrammar.id)
-                            ? "star"
-                            : "star-outline"
-                        }
+                        color={detailIsFavorite ? "#F5A623" : colors.textMuted}
+                        name={detailIsFavorite ? "star" : "star-outline"}
                         size={22}
                       />
                     </Pressable>
@@ -374,26 +374,26 @@ export default function GrammarScreen() {
                 </View>
 
                 <View style={styles.sheetSection}>
-                  <Text style={styles.sheetSectionLabel}>Tom tat</Text>
+                  <Text style={styles.sheetSectionLabel}>Nội dung</Text>
                   <Text style={styles.sheetSectionText}>{selectedGrammar.content}</Text>
                 </View>
 
                 <View style={styles.sheetSection}>
-                  <Text style={styles.sheetSectionLabel}>Giai thich</Text>
+                  <Text style={styles.sheetSectionLabel}>Mẹo</Text>
                   <Text style={styles.sheetSectionText}>
-                    {selectedGrammar.tips?.trim() || "Chua co ghi chu bo sung."}
+                    {selectedGrammar.tips?.trim() || "Chưa có mẹo bổ sung."}
                   </Text>
                 </View>
 
                 <View style={styles.sheetSection}>
-                  <Text style={styles.sheetSectionLabel}>Vi du</Text>
+                  <Text style={styles.sheetSectionLabel}>Ví dụ</Text>
                   <Text style={styles.sheetExampleText}>
-                    {selectedGrammar.example?.trim() || "Chua co vi du."}
+                    {selectedGrammar.example?.trim() || "Chưa có ví dụ."}
                   </Text>
                 </View>
               </ScrollView>
             ) : (
-              <Text style={styles.emptyText}>Khong tim thay noi dung chi tiet.</Text>
+              <Text style={styles.emptyText}>Không tìm thấy nội dung chi tiết.</Text>
             )}
           </View>
         </View>
@@ -439,19 +439,6 @@ const styles = StyleSheet.create({
     marginLeft: spacing.sm,
     width: 34,
   },
-  favoriteCard: {
-    width: 286,
-  },
-  favoriteRow: {
-    gap: spacing.md,
-    paddingRight: spacing.xs,
-  },
-  favoriteSavedAt: {
-    color: colors.textMuted,
-    fontSize: 11,
-    marginTop: spacing.xs,
-    paddingHorizontal: spacing.sm,
-  },
   feedbackRow: {
     alignItems: "center",
     flexDirection: "row",
@@ -462,7 +449,19 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 14,
   },
-  grammarCard: {
+  grammarCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  grammarIcon: {
+    alignItems: "center",
+    backgroundColor: colors.accentSoft,
+    borderRadius: radius.pill,
+    height: 40,
+    justifyContent: "center",
+    width: 40,
+  },
+  grammarItem: {
     alignItems: "center",
     backgroundColor: colors.surface,
     borderColor: colors.border,
@@ -470,47 +469,33 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: "row",
     justifyContent: "space-between",
-    minHeight: 104,
+    minHeight: 92,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
   },
-  grammarCardCopy: {
-    flex: 1,
-  },
-  grammarCardFavorite: {
-    backgroundColor: "#F7FCFB",
-    borderColor: "#CFEAE4",
-  },
-  grammarCardLeft: {
+  grammarItemMain: {
     alignItems: "center",
     flex: 1,
     flexDirection: "row",
     gap: spacing.md,
   },
-  grammarCheck: {
-    alignItems: "center",
-    backgroundColor: colors.accent,
-    borderRadius: radius.pill,
-    height: 34,
-    justifyContent: "center",
-    width: 34,
-  },
-  grammarCheckFavorite: {
-    backgroundColor: "#33C1AF",
+  grammarMeta: {
+    color: colors.accent,
+    fontSize: 13,
+    fontWeight: "700",
   },
   grammarSubtitle: {
     color: colors.textMuted,
     fontSize: 14,
-    lineHeight: 22,
-    marginTop: 4,
+    lineHeight: 21,
   },
   grammarTitle: {
     color: colors.text,
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "800",
     lineHeight: 24,
   },
@@ -549,6 +534,11 @@ const styles = StyleSheet.create({
     height: 38,
     justifyContent: "center",
     width: 38,
+  },
+  sectionActions: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
   },
   sectionCard: {
     marginBottom: spacing.lg,
