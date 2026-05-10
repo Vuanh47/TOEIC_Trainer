@@ -2,7 +2,6 @@ package org.example.backend.config;
 
 import lombok.RequiredArgsConstructor;
 import org.example.backend.security.CustomUserDetailsService;
-import org.example.backend.security.CustomOAuth2UserService;
 import org.example.backend.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -29,10 +28,9 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomUserDetailsService customUserDetailsService;
-    private final CustomOAuth2UserService customOAuth2UserService;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, DaoAuthenticationProvider authenticationProvider) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, DaoAuthenticationProvider authenticationProvider) {
         http
                 .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
@@ -42,9 +40,6 @@ public class SecurityConfig {
                                 "/auth/login",
                                 "/auth/register",
                                 "/users/admin",
-                                "/oauth2/**",
-                                "/login/**",
-                                "/oauth2-test.html",
                                 "/ws",
                                 "/ws/**",
                                 "/app/**",
@@ -58,10 +53,6 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider)
-                .oauth2Login(oauth2 -> oauth2
-                        .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
-                        .defaultSuccessUrl("/oauth2-test.html", true)
-                )
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
                 )
