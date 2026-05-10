@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Platform,
   Pressable,
@@ -29,9 +30,9 @@ import {
   getMyFlashcards,
   updateMyFlashcard,
 } from "@/src/services/user.service";
-import { replaceRoute } from "@/src/utils/navigation";
-import { FlashcardApiItem, FlashcardCollectionApiItem } from "@/src/types/user-api";
 import { vocabProgressStore } from "@/src/store/progress-store";
+import { FlashcardApiItem, FlashcardCollectionApiItem } from "@/src/types/user-api";
+import { replaceRoute } from "@/src/utils/navigation";
 
 type ExpoSpeechModule = {
   speak: (text: string, options?: Record<string, unknown>) => void;
@@ -52,7 +53,9 @@ async function loadExpoSpeechModule(): Promise<ExpoSpeechModule | null> {
   try {
     const importer = new Function("m", "return import(m)") as (m: string) => Promise<unknown>;
     const mod: any = await importer("expo-speech");
-    if (mod && typeof mod.speak === "function" && typeof mod.stop === "function") return mod as ExpoSpeechModule;
+    if (mod && typeof mod.speak === "function" && typeof mod.stop === "function") {
+      return mod as ExpoSpeechModule;
+    }
     if (mod?.default && typeof mod.default.speak === "function" && typeof mod.default.stop === "function") {
       return mod.default as ExpoSpeechModule;
     }
@@ -64,16 +67,21 @@ async function loadExpoSpeechModule(): Promise<ExpoSpeechModule | null> {
 
 const QUICK_JSON_TEMPLATE = `{
   "topicName": "Business Meeting",
-  "topicDescription": "Tu vung hop va dam phan",
+  "topicDescription": "Từ vựng họp và đàm phán",
   "items": [
     {
       "englishWord": "negotiate",
-      "meaningVi": "dam phan",
+      "meaningVi": "đàm phán",
       "exampleSentence": "We need to negotiate a better price.",
       "pronunciation": "/nɪˈɡəʊ.ʃi.eɪt/"
     }
   ]
 }`;
+
+function formatName(fullName?: string | null) {
+  if (!fullName?.trim()) return "B";
+  return fullName.trim().charAt(0).toUpperCase();
+}
 
 export default function CardsScreen() {
   const { auth } = useAuth();
@@ -120,6 +128,14 @@ export default function CardsScreen() {
     return currentCards[cardIndex % currentCards.length];
   }, [cardIndex, currentCards]);
 
+  const currentCollection = useMemo(
+    () => collections.find((collection) => collection.id === selectedCollectionId) ?? null,
+    [collections, selectedCollectionId],
+  );
+
+  const progressValue = currentCards.length ? ((cardIndex + 1) / currentCards.length) * 100 : 0;
+  const avatarLabel = formatName(auth.user?.fullName);
+
   const loadCollectionsAndCards = useCallback(async () => {
     if (!auth.accessToken) return;
     const collectionsPayload = await getMyFlashcardCollections(auth.accessToken);
@@ -136,12 +152,14 @@ export default function CardsScreen() {
       setMyCards(detail.data?.flashcards ?? []);
       return;
     }
+
     const mine = await getMyFlashcards(auth.accessToken);
     setMyCards(mine.data ?? []);
   }, [auth.accessToken, selectedCollectionId]);
 
   const loadAll = useCallback(async () => {
     if (!auth.accessToken) return;
+
     try {
       setLoading(true);
       if (selectedModuleId) {
@@ -152,11 +170,12 @@ export default function CardsScreen() {
         setLessonCards([]);
         setMode("mine");
       }
+
       await loadCollectionsAndCards();
       setCardIndex(0);
       setShowMeaning(false);
     } catch (error) {
-      Alert.alert("Flashcards", error instanceof Error ? error.message : "Khong the tai flashcard.");
+      Alert.alert("Flashcards", error instanceof Error ? error.message : "Không thể tải flashcard.");
     } finally {
       setLoading(false);
     }
@@ -168,11 +187,12 @@ export default function CardsScreen() {
 
   const speakText = (text: string) => {
     if (!text.trim()) return;
+
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
       void (async () => {
         const speech = await loadExpoSpeechModule();
         if (!speech) {
-          Alert.alert("Pronunciation", "Chay: npx expo install expo-speech");
+          Alert.alert("Phát âm", "Chạy: npx expo install expo-speech");
           return;
         }
         setIsSpeaking(true);
@@ -203,6 +223,7 @@ export default function CardsScreen() {
     } else {
       utterance.lang = preferredLocale;
     }
+
     utterance.rate = rate;
     utterance.pitch = pitch;
     utterance.onend = () => setIsSpeaking(false);
@@ -214,22 +235,27 @@ export default function CardsScreen() {
 
   const createAndAttachToCollection = async (item: BulkFlashcardInput, collectionId: number | null) => {
     if (!auth.accessToken) return;
+
     const created = await createMyFlashcard(auth.accessToken, {
       englishWord: item.englishWord.trim(),
       meaningVi: item.meaningVi.trim(),
       exampleSentence: item.exampleSentence?.trim() || undefined,
       pronunciation: item.pronunciation?.trim() || undefined,
     });
+
     if (collectionId && created.data?.id) {
-      await updateMyFlashcard(auth.accessToken, created.data.id, { flashcardCollectionId: collectionId });
+      await updateMyFlashcard(auth.accessToken, created.data.id, {
+        flashcardCollectionId: collectionId,
+      });
     }
   };
 
   const handleCreateCollection = async () => {
     if (!auth.accessToken || !newCollectionName.trim()) {
-      Alert.alert("Collection", "Nhap ten chu de truoc.");
+      Alert.alert("Chủ đề", "Nhập tên chủ đề trước.");
       return;
     }
+
     try {
       setWorking(true);
       const created = await createFlashcardCollection(auth.accessToken, {
@@ -242,7 +268,7 @@ export default function CardsScreen() {
       await loadCollectionsAndCards();
       setShowTopicEditor(false);
     } catch (error) {
-      Alert.alert("Collection", error instanceof Error ? error.message : "Khong tao duoc chu de.");
+      Alert.alert("Chủ đề", error instanceof Error ? error.message : "Không tạo được chủ đề.");
     } finally {
       setWorking(false);
     }
@@ -250,13 +276,14 @@ export default function CardsScreen() {
 
   const handleDeleteCollection = async () => {
     if (!auth.accessToken || !selectedCollectionId) return;
+
     try {
       setWorking(true);
       await deleteFlashcardCollection(auth.accessToken, selectedCollectionId);
       setSelectedCollectionId(null);
       await loadCollectionsAndCards();
     } catch (error) {
-      Alert.alert("Collection", error instanceof Error ? error.message : "Khong xoa duoc chu de.");
+      Alert.alert("Chủ đề", error instanceof Error ? error.message : "Không xóa được chủ đề.");
     } finally {
       setWorking(false);
     }
@@ -264,9 +291,10 @@ export default function CardsScreen() {
 
   const handleManualAdd = async () => {
     if (!manualWord.trim() || !manualMeaning.trim()) {
-      Alert.alert("Flashcard", "Can nhap englishWord va meaningVi.");
+      Alert.alert("Flashcard", "Cần nhập từ tiếng Anh và nghĩa tiếng Việt.");
       return;
     }
+
     try {
       setWorking(true);
       await createAndAttachToCollection(
@@ -285,7 +313,7 @@ export default function CardsScreen() {
       await loadCollectionsAndCards();
       setShowAddForm(false);
     } catch (error) {
-      Alert.alert("Flashcard", error instanceof Error ? error.message : "Khong them duoc flashcard.");
+      Alert.alert("Flashcard", error instanceof Error ? error.message : "Không thêm được flashcard.");
     } finally {
       setWorking(false);
     }
@@ -294,6 +322,7 @@ export default function CardsScreen() {
   const parseBulkInput = (raw: string): { topicName?: string; topicDescription?: string; items: BulkFlashcardInput[] } => {
     const parsed = JSON.parse(raw) as unknown;
     if (Array.isArray(parsed)) return { items: parsed as BulkFlashcardInput[] };
+
     if (typeof parsed === "object" && parsed !== null && "items" in parsed) {
       const data = parsed as {
         topicName?: string;
@@ -302,21 +331,25 @@ export default function CardsScreen() {
         description?: string;
         items: BulkFlashcardInput[];
       };
+
       return {
-        topicName: data.topicName ?? data.topic,
         topicDescription: data.topicDescription ?? data.description,
+        topicName: data.topicName ?? data.topic,
         items: Array.isArray(data.items) ? data.items : [],
       };
     }
+
     return { items: [] };
   };
 
   const handleBulkAdd = async () => {
     if (!auth.accessToken) return;
+
     try {
       setWorking(true);
       const payload = parseBulkInput(bulkJson);
-      if (!payload.items.length) throw new Error("JSON khong hop le hoac khong co items.");
+      if (!payload.items.length) throw new Error("JSON không hợp lệ hoặc không có items.");
+
       let collectionId = selectedCollectionId;
 
       if (!collectionId && payload.topicName?.trim()) {
@@ -331,11 +364,12 @@ export default function CardsScreen() {
         if (!item.englishWord?.trim() || !item.meaningVi?.trim()) continue;
         await createAndAttachToCollection(item, collectionId);
       }
+
       await loadCollectionsAndCards();
       setShowAddForm(false);
-      Alert.alert("Flashcard", "Da them nhanh tu JSON.");
+      Alert.alert("Flashcard", "Đã thêm nhanh từ JSON.");
     } catch (error) {
-      Alert.alert("Bulk JSON", error instanceof Error ? error.message : "Khong parse duoc JSON.");
+      Alert.alert("Bulk JSON", error instanceof Error ? error.message : "Không parse được JSON.");
     } finally {
       setWorking(false);
     }
@@ -343,6 +377,7 @@ export default function CardsScreen() {
 
   const handleDeleteCurrentCard = async () => {
     if (!auth.accessToken || !currentCard || mode !== "mine") return;
+
     try {
       setWorking(true);
       await deleteMyFlashcard(auth.accessToken, currentCard.id);
@@ -350,7 +385,7 @@ export default function CardsScreen() {
       setCardIndex(0);
       setShowMeaning(false);
     } catch (error) {
-      Alert.alert("Flashcard", error instanceof Error ? error.message : "Khong xoa duoc tu.");
+      Alert.alert("Flashcard", error instanceof Error ? error.message : "Không xóa được từ.");
     } finally {
       setWorking(false);
     }
@@ -362,68 +397,164 @@ export default function CardsScreen() {
     replaceRoute(`/user/roadmap?moduleId=${selectedModuleId}&vocabDone=true&focus=practice`);
   };
 
+  const handleOpenAllCards = async () => {
+    setSelectedCollectionId(null);
+    if (!auth.accessToken) return;
+    const mine = await getMyFlashcards(auth.accessToken);
+    setMyCards(mine.data ?? []);
+    setCardIndex(0);
+  };
+
   return (
     <UserScreen>
       <AppHeader
         title="Flashcards"
         leftIcon={selectedModuleId ? "chevron-back-outline" : undefined}
         onLeftPress={selectedModuleId ? () => router.back() : undefined}
-        rightSlot={<AvatarBadge label="A" />}
+        rightSlot={<AvatarBadge label={avatarLabel} />}
       />
 
-      <View style={styles.topBar}>
-        <View style={styles.tabRow}>
-          {selectedModuleId ? (
-            <Pressable style={[styles.tabButton, mode === "lesson" ? styles.tabButtonActive : null]} onPress={() => setMode("lesson")}>
-              <Text style={styles.tabText}>Bai hoc</Text>
-            </Pressable>
-          ) : null}
-          <Pressable style={[styles.tabButton, mode === "mine" ? styles.tabButtonActive : null]} onPress={() => setMode("mine")}>
-            <Text style={styles.tabText}>Tu cua toi</Text>
-          </Pressable>
-        </View>
+      <SurfaceCard style={styles.heroShell}>
+        <View style={styles.heroAccentA} />
+        <View style={styles.heroAccentB} />
 
-        {mode === "mine" ? (
-          <View style={styles.actionButtons}>
-            <Pressable style={styles.iconBtn} onPress={() => setShowTopicEditor((v) => !v)}>
-              <Ionicons name="folder-open-outline" size={18} color={colors.primaryDark} />
-            </Pressable>
-            <Pressable style={[styles.iconBtn, styles.iconBtnPrimary]} onPress={() => setShowAddForm((v) => !v)}>
-              <Ionicons name="add" size={20} color="#fff" />
+        <View style={styles.heroTop}>
+          <View style={styles.modePills}>
+            {selectedModuleId ? (
+              <Pressable
+                onPress={() => setMode("lesson")}
+                style={[styles.modePill, mode === "lesson" ? styles.modePillActive : null]}
+              >
+                <Ionicons
+                  color={mode === "lesson" ? "#FFFDF8" : colors.primaryDark}
+                  name="book-outline"
+                  size={14}
+                />
+                <Text style={[styles.modePillText, mode === "lesson" ? styles.modePillTextActive : null]}>
+                  Bài học
+                </Text>
+              </Pressable>
+            ) : null}
+
+            <Pressable
+              onPress={() => setMode("mine")}
+              style={[styles.modePill, mode === "mine" ? styles.modePillActive : null]}
+            >
+              <Ionicons
+                color={mode === "mine" ? "#FFFDF8" : colors.primaryDark}
+                name="albums-outline"
+                size={14}
+              />
+              <Text style={[styles.modePillText, mode === "mine" ? styles.modePillTextActive : null]}>
+                Từ của tôi
+              </Text>
             </Pressable>
           </View>
-        ) : null}
-      </View>
+
+          {mode === "mine" ? (
+            <View style={styles.actionButtons}>
+              <Pressable style={styles.heroIconButton} onPress={() => setShowTopicEditor((v) => !v)}>
+                <Ionicons color={colors.primaryDark} name="folder-open-outline" size={18} />
+              </Pressable>
+              <Pressable
+                onPress={() => setShowAddForm((v) => !v)}
+                style={[styles.heroIconButton, styles.heroIconButtonPrimary]}
+              >
+                <Ionicons color="#FFFDF8" name="add" size={20} />
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
+
+        <View style={styles.heroSummary}>
+          <View style={styles.heroSummaryMain}>
+            <Text style={styles.heroEyebrow}>{mode === "lesson" ? "Ôn từ theo module" : "Kho flashcard cá nhân"}</Text>
+            <Text style={styles.heroTitle}>
+              {mode === "lesson" ? "Học theo nhịp ngắn, nhớ lâu hơn." : "Biến từ mới thành bộ thẻ học mỗi ngày."}
+            </Text>
+            <Text style={styles.heroDescription}>
+              {mode === "lesson"
+                ? "Lật thẻ nhanh, nghe phát âm và hoàn thành trọn bộ từ vựng của module hiện tại."
+                : "Tạo chủ đề riêng, gom từ theo ngữ cảnh và duy trì tiến độ học đều đặn."}
+            </Text>
+          </View>
+
+          <View style={styles.heroBadge}>
+            <Text style={styles.heroBadgeValue}>{currentCards.length}</Text>
+            <Text style={styles.heroBadgeLabel}>Flashcard</Text>
+          </View>
+        </View>
+
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{currentCards.length}</Text>
+            <Text style={styles.statLabel}>{mode === "lesson" ? "Từ trong module" : "Tổng từ hiện có"}</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text numberOfLines={1} style={styles.statValueSmall}>
+              {currentCollection?.name ?? "Tất cả"}
+            </Text>
+            <Text style={styles.statLabel}>Chủ đề đang xem</Text>
+          </View>
+        </View>
+
+        <ProgressBar
+          accentColor="#E08A2E"
+          label="Tiến độ ôn thẻ"
+          labelColor="#FFF9F0"
+          rightLabel={currentCards.length ? `${cardIndex + 1}/${currentCards.length}` : "0/0"}
+          rightLabelColor="#FFF9F0"
+          value={progressValue}
+        />
+      </SurfaceCard>
 
       {mode === "mine" ? (
         <SurfaceCard style={styles.collectionCard}>
+          <View style={styles.collectionHeader}>
+            <Text style={styles.sectionTitle}>Chủ đề của bạn</Text>
+            <Text style={styles.sectionMeta}>{collections.length} bộ sưu tập</Text>
+          </View>
+
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.chipRow}>
               <Pressable
-                style={[styles.chip, selectedCollectionId === null ? styles.chipActive : null]}
-                onPress={async () => {
-                  setSelectedCollectionId(null);
-                  if (!auth.accessToken) return;
-                  const mine = await getMyFlashcards(auth.accessToken);
-                  setMyCards(mine.data ?? []);
-                  setCardIndex(0);
-                }}
+                onPress={() => void handleOpenAllCards()}
+                style={[styles.collectionChip, selectedCollectionId === null ? styles.collectionChipActive : null]}
               >
-                <Text style={styles.chipText}>Tat ca</Text>
+                <Text
+                  style={[
+                    styles.collectionChipText,
+                    selectedCollectionId === null ? styles.collectionChipTextActive : null,
+                  ]}
+                >
+                  Tất cả
+                </Text>
               </Pressable>
+
               {collections.map((collection) => (
                 <Pressable
                   key={collection.id}
-                  style={[styles.chip, selectedCollectionId === collection.id ? styles.chipActive : null]}
                   onPress={async () => {
                     setSelectedCollectionId(collection.id);
                     if (!auth.accessToken) return;
                     const detail = await getFlashcardCollectionDetail(auth.accessToken, collection.id);
                     setMyCards(detail.data?.flashcards ?? []);
                     setCardIndex(0);
+                    setShowMeaning(false);
                   }}
+                  style={[
+                    styles.collectionChip,
+                    selectedCollectionId === collection.id ? styles.collectionChipActive : null,
+                  ]}
                 >
-                  <Text style={styles.chipText}>{collection.name}</Text>
+                  <Text
+                    style={[
+                      styles.collectionChipText,
+                      selectedCollectionId === collection.id ? styles.collectionChipTextActive : null,
+                    ]}
+                  >
+                    {collection.name}
+                  </Text>
                 </Pressable>
               ))}
             </View>
@@ -433,27 +564,34 @@ export default function CardsScreen() {
 
       {mode === "mine" && showTopicEditor ? (
         <SurfaceCard style={styles.panelCard}>
-          <Text style={styles.panelTitle}>Quan ly chu de</Text>
+          <Text style={styles.panelTitle}>Quản lý chủ đề</Text>
+          <Text style={styles.panelHint}>Tạo nhóm từ mới để ôn luyện theo từng chủ đề riêng.</Text>
+
           <TextInput
-            style={styles.input}
-            placeholder="Ten chu de moi"
-            placeholderTextColor={colors.textMuted}
-            value={newCollectionName}
             onChangeText={setNewCollectionName}
+            placeholder="Tên chủ đề mới"
+            placeholderTextColor={colors.textMuted}
+            style={styles.input}
+            value={newCollectionName}
           />
           <TextInput
-            style={styles.input}
-            placeholder="Mo ta"
-            placeholderTextColor={colors.textMuted}
-            value={newCollectionDescription}
             onChangeText={setNewCollectionDescription}
+            placeholder="Mô tả ngắn"
+            placeholderTextColor={colors.textMuted}
+            style={styles.input}
+            value={newCollectionDescription}
           />
-          <View style={styles.btnRow}>
-            <Pressable style={styles.primaryBtn} disabled={working} onPress={handleCreateCollection}>
-              <Text style={styles.primaryBtnText}>Tao chu de</Text>
+
+          <View style={styles.buttonRow}>
+            <Pressable disabled={working} onPress={handleCreateCollection} style={styles.primaryBtn}>
+              <Text style={styles.primaryBtnText}>Tạo chủ đề</Text>
             </Pressable>
-            <Pressable style={styles.ghostDangerBtn} disabled={working || !selectedCollectionId} onPress={handleDeleteCollection}>
-              <Text style={styles.ghostDangerText}>Xoa</Text>
+            <Pressable
+              disabled={working || !selectedCollectionId}
+              onPress={handleDeleteCollection}
+              style={styles.ghostDangerBtn}
+            >
+              <Text style={styles.ghostDangerText}>Xóa</Text>
             </Pressable>
           </View>
         </SurfaceCard>
@@ -461,106 +599,238 @@ export default function CardsScreen() {
 
       {mode === "mine" && showAddForm ? (
         <SurfaceCard style={styles.panelCard}>
-          <View style={styles.tabRow}>
-            <Pressable style={[styles.tabButton, addMode === "manual" ? styles.tabButtonActive : null]} onPress={() => setAddMode("manual")}>
-              <Text style={styles.tabText}>Them tay</Text>
+          <View style={styles.inlineSwitch}>
+            <Pressable
+              onPress={() => setAddMode("manual")}
+              style={[styles.inlineSwitchItem, addMode === "manual" ? styles.inlineSwitchItemActive : null]}
+            >
+              <Text
+                style={[
+                  styles.inlineSwitchText,
+                  addMode === "manual" ? styles.inlineSwitchTextActive : null,
+                ]}
+              >
+                Thêm tay
+              </Text>
             </Pressable>
-            <Pressable style={[styles.tabButton, addMode === "bulk" ? styles.tabButtonActive : null]} onPress={() => setAddMode("bulk")}>
-              <Text style={styles.tabText}>Them JSON</Text>
+            <Pressable
+              onPress={() => setAddMode("bulk")}
+              style={[styles.inlineSwitchItem, addMode === "bulk" ? styles.inlineSwitchItemActive : null]}
+            >
+              <Text
+                style={[
+                  styles.inlineSwitchText,
+                  addMode === "bulk" ? styles.inlineSwitchTextActive : null,
+                ]}
+              >
+                Thêm JSON
+              </Text>
             </Pressable>
           </View>
 
           {addMode === "manual" ? (
             <>
-              <TextInput style={styles.input} placeholder="English word" placeholderTextColor={colors.textMuted} value={manualWord} onChangeText={setManualWord} />
-              <TextInput style={styles.input} placeholder="Meaning (VI)" placeholderTextColor={colors.textMuted} value={manualMeaning} onChangeText={setManualMeaning} />
-              <TextInput style={styles.input} placeholder="Example sentence" placeholderTextColor={colors.textMuted} value={manualExample} onChangeText={setManualExample} />
-              <TextInput style={styles.input} placeholder="Pronunciation" placeholderTextColor={colors.textMuted} value={manualPronunciation} onChangeText={setManualPronunciation} />
-              <Pressable style={styles.primaryBtn} disabled={working} onPress={handleManualAdd}>
-                <Text style={styles.primaryBtnText}>{working ? "Dang them..." : "Them flashcard"}</Text>
+              <TextInput
+                onChangeText={setManualWord}
+                placeholder="Từ tiếng Anh"
+                placeholderTextColor={colors.textMuted}
+                style={styles.input}
+                value={manualWord}
+              />
+              <TextInput
+                onChangeText={setManualMeaning}
+                placeholder="Nghĩa tiếng Việt"
+                placeholderTextColor={colors.textMuted}
+                style={styles.input}
+                value={manualMeaning}
+              />
+              <TextInput
+                onChangeText={setManualExample}
+                placeholder="Câu ví dụ"
+                placeholderTextColor={colors.textMuted}
+                style={styles.input}
+                value={manualExample}
+              />
+              <TextInput
+                onChangeText={setManualPronunciation}
+                placeholder="Phiên âm"
+                placeholderTextColor={colors.textMuted}
+                style={styles.input}
+                value={manualPronunciation}
+              />
+              <Pressable disabled={working} onPress={handleManualAdd} style={styles.primaryBtn}>
+                <Text style={styles.primaryBtnText}>{working ? "Đang thêm..." : "Thêm flashcard"}</Text>
               </Pressable>
             </>
           ) : (
             <>
-              <Text style={styles.hint}>Paste JSON theo mau ben duoi:</Text>
+              <Text style={styles.panelHint}>Dán JSON theo mẫu để tạo nhanh cả bộ flashcard.</Text>
               <TextInput
-                style={[styles.input, styles.jsonInput]}
                 multiline
-                placeholder="Dan JSON vao day"
-                placeholderTextColor={colors.textMuted}
-                value={bulkJson}
                 onChangeText={setBulkJson}
+                placeholder="Dán JSON vào đây"
+                placeholderTextColor={colors.textMuted}
+                style={[styles.input, styles.jsonInput]}
+                textAlignVertical="top"
+                value={bulkJson}
               />
-              <Pressable style={styles.primaryBtn} disabled={working} onPress={handleBulkAdd}>
-                <Text style={styles.primaryBtnText}>{working ? "Dang them..." : "Them nhanh JSON"}</Text>
+              <Pressable disabled={working} onPress={handleBulkAdd} style={styles.primaryBtn}>
+                <Text style={styles.primaryBtnText}>{working ? "Đang thêm..." : "Thêm nhanh JSON"}</Text>
               </Pressable>
             </>
           )}
         </SurfaceCard>
       ) : null}
 
-      <View style={styles.headline}>
-        <Text style={styles.title}>{mode === "lesson" ? "Lesson Vocabulary" : "My Vocabulary"}</Text>
-        <Text style={styles.counter}>{currentCards.length ? `${cardIndex + 1}/${currentCards.length}` : "0/0"}</Text>
+      <View style={styles.deckHeader}>
+        <View>
+          <Text style={styles.deckTitle}>{mode === "lesson" ? "Bộ thẻ bài học" : "Bộ thẻ của tôi"}</Text>
+          <Text style={styles.deckSubtitle}>
+            {loading
+              ? "Đang tải dữ liệu..."
+              : currentCard
+                ? "Chạm vào thẻ để lật nghĩa và câu ví dụ."
+                : "Bắt đầu bằng cách tạo một bộ từ mới cho riêng bạn."}
+          </Text>
+        </View>
+        <View style={styles.deckCounter}>
+          <Text style={styles.deckCounterText}>{currentCards.length ? `${cardIndex + 1}/${currentCards.length}` : "0/0"}</Text>
+        </View>
       </View>
-      <ProgressBar value={currentCards.length ? ((cardIndex + 1) / currentCards.length) * 100 : 0} accentColor="#2EB84B" />
 
-      <Pressable onPress={() => setShowMeaning((v) => !v)}>
+      <Pressable disabled={currentCards.length === 0} onPress={() => setShowMeaning((v) => !v)}>
         <SurfaceCard style={styles.flashcard}>
-          <Text style={styles.word}>{loading ? "Dang tai..." : currentCard?.englishWord ?? "Chua co flashcard"}</Text>
-          <View style={styles.pronRow}>
-            <Text style={styles.pronText}>{currentCard?.pronunciation ?? "-"}</Text>
-            <Pressable style={styles.listenBtn} onPress={() => speakText(currentCard?.englishWord ?? "")}>
-              <Ionicons name="volume-high" color="#fff" size={18} />
-            </Pressable>
-          </View>
+          <View style={styles.flashcardGlowA} />
+          <View style={styles.flashcardGlowB} />
 
-          <View style={styles.voiceRow}>
-            <Pressable style={[styles.tinyBtn, voiceRegion === "US" ? styles.tinyBtnActive : null]} onPress={() => setVoiceRegion("US")}>
-              <Text style={styles.tinyBtnText}>US</Text>
-            </Pressable>
-            <Pressable style={[styles.tinyBtn, voiceRegion === "UK" ? styles.tinyBtnActive : null]} onPress={() => setVoiceRegion("UK")}>
-              <Text style={styles.tinyBtnText}>UK</Text>
-            </Pressable>
-            <Text style={styles.meta}>{isSpeaking ? "Dang doc..." : Platform.OS === "web" ? "Web speech" : "Mobile speech"}</Text>
-          </View>
-          <View style={styles.voiceRow}>
-            <Pressable style={styles.tinyBtn} onPress={() => setRate((v) => Math.max(0.5, +(v - 0.1).toFixed(1)))}><Text style={styles.tinyBtnText}>Rate-</Text></Pressable>
-            <Text style={styles.meta}>{rate.toFixed(1)}</Text>
-            <Pressable style={styles.tinyBtn} onPress={() => setRate((v) => Math.min(2, +(v + 0.1).toFixed(1)))}><Text style={styles.tinyBtnText}>Rate+</Text></Pressable>
-            <Pressable style={styles.tinyBtn} onPress={() => setPitch((v) => Math.max(0, +(v - 0.1).toFixed(1)))}><Text style={styles.tinyBtnText}>Pitch-</Text></Pressable>
-            <Text style={styles.meta}>{pitch.toFixed(1)}</Text>
-            <Pressable style={styles.tinyBtn} onPress={() => setPitch((v) => Math.min(2, +(v + 0.1).toFixed(1)))}><Text style={styles.tinyBtnText}>Pitch+</Text></Pressable>
-          </View>
+          {loading ? (
+            <View style={styles.emptyState}>
+              <ActivityIndicator color={colors.primaryDark} />
+              <Text style={styles.emptyTitle}>Đang tải flashcard</Text>
+              <Text style={styles.emptyText}>Hệ thống đang chuẩn bị bộ thẻ học cho bạn.</Text>
+            </View>
+          ) : currentCard ? (
+            <>
+              <View style={styles.flashcardTop}>
+                <View style={styles.flashcardBadge}>
+                  <Ionicons color="#FFFDF8" name="sparkles-outline" size={14} />
+                  <Text style={styles.flashcardBadgeText}>{mode === "lesson" ? "Thẻ bài học" : "Thẻ cá nhân"}</Text>
+                </View>
+                <Pressable onPress={() => speakText(currentCard.englishWord)} style={styles.listenButton}>
+                  <Ionicons color="#FFFDF8" name="volume-high" size={18} />
+                </Pressable>
+              </View>
 
-          <View style={styles.meaningBox}>
-            {showMeaning ? (
-              <>
-                <Text style={styles.label}>Nghia</Text>
-                <Text style={styles.meaning}>{currentCard?.meaningVi ?? "Khong co nghia"}</Text>
-                <Text style={styles.label}>Vi du</Text>
-                <Text style={styles.example}>{currentCard?.exampleSentence ?? "Khong co vi du"}</Text>
-              </>
-            ) : (
-              <Text style={styles.tapHint}>Cham de hien nghia</Text>
-            )}
-          </View>
+              <Text style={styles.word}>{currentCard.englishWord}</Text>
+              <Text style={styles.pronunciation}>{currentCard.pronunciation || "Chưa có phiên âm"}</Text>
+
+              <View style={styles.controlRow}>
+                <Pressable
+                  onPress={() => setVoiceRegion("US")}
+                  style={[styles.smallChip, voiceRegion === "US" ? styles.smallChipActive : null]}
+                >
+                  <Text style={[styles.smallChipText, voiceRegion === "US" ? styles.smallChipTextActive : null]}>
+                    US
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setVoiceRegion("UK")}
+                  style={[styles.smallChip, voiceRegion === "UK" ? styles.smallChipActive : null]}
+                >
+                  <Text style={[styles.smallChipText, voiceRegion === "UK" ? styles.smallChipTextActive : null]}>
+                    UK
+                  </Text>
+                </Pressable>
+                <Text style={styles.readingStatus}>
+                  {isSpeaking ? "Đang phát âm..." : Platform.OS === "web" ? "Giọng đọc trên web" : "Giọng đọc di động"}
+                </Text>
+              </View>
+
+              <View style={styles.tuningGrid}>
+                <View style={styles.tuningGroup}>
+                  <Text style={styles.tuningLabel}>Tốc độ</Text>
+                  <View style={styles.tuningControls}>
+                    <Pressable
+                      onPress={() => setRate((v) => Math.max(0.5, +(v - 0.1).toFixed(1)))}
+                      style={styles.tuningButton}
+                    >
+                      <Text style={styles.tuningButtonText}>-</Text>
+                    </Pressable>
+                    <Text style={styles.tuningValue}>{rate.toFixed(1)}</Text>
+                    <Pressable
+                      onPress={() => setRate((v) => Math.min(2, +(v + 0.1).toFixed(1)))}
+                      style={styles.tuningButton}
+                    >
+                      <Text style={styles.tuningButtonText}>+</Text>
+                    </Pressable>
+                  </View>
+                </View>
+
+                <View style={styles.tuningGroup}>
+                  <Text style={styles.tuningLabel}>Âm vực</Text>
+                  <View style={styles.tuningControls}>
+                    <Pressable
+                      onPress={() => setPitch((v) => Math.max(0, +(v - 0.1).toFixed(1)))}
+                      style={styles.tuningButton}
+                    >
+                      <Text style={styles.tuningButtonText}>-</Text>
+                    </Pressable>
+                    <Text style={styles.tuningValue}>{pitch.toFixed(1)}</Text>
+                    <Pressable
+                      onPress={() => setPitch((v) => Math.min(2, +(v + 0.1).toFixed(1)))}
+                      style={styles.tuningButton}
+                    >
+                      <Text style={styles.tuningButtonText}>+</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.meaningBox}>
+                {showMeaning ? (
+                  <>
+                    <Text style={styles.meaningLabel}>Nghĩa</Text>
+                    <Text style={styles.meaning}>{currentCard.meaningVi || "Không có nghĩa"}</Text>
+                    <Text style={styles.meaningLabel}>Ví dụ</Text>
+                    <Text style={styles.example}>{currentCard.exampleSentence || "Chưa có câu ví dụ."}</Text>
+                  </>
+                ) : (
+                  <View style={styles.tapBox}>
+                    <Ionicons color={colors.primary} name="hand-left-outline" size={18} />
+                    <Text style={styles.tapHint}>Chạm để lật thẻ và xem nghĩa</Text>
+                  </View>
+                )}
+              </View>
+            </>
+          ) : (
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIconWrap}>
+                <Ionicons color="#FFFDF8" name="albums-outline" size={30} />
+              </View>
+              <Text style={styles.emptyTitle}>Chưa có flashcard</Text>
+              <Text style={styles.emptyText}>
+                {mode === "lesson"
+                  ? "Module này chưa có bộ từ vựng để ôn luyện."
+                  : "Tạo chủ đề hoặc thêm nhanh từ mới để bắt đầu bộ flashcard của bạn."}
+              </Text>
+            </View>
+          )}
         </SurfaceCard>
       </Pressable>
 
-      <View style={styles.btnRow}>
+      <View style={styles.buttonRow}>
         <Pressable
-          style={styles.ghostBtn}
           disabled={currentCards.length === 0}
           onPress={() => {
             setShowMeaning(false);
             setCardIndex((v) => (v - 1 + currentCards.length) % currentCards.length);
           }}
+          style={styles.ghostBtn}
         >
-          <Text style={styles.ghostBtnText}>Prev</Text>
+          <Text style={styles.ghostBtnText}>Trước</Text>
         </Pressable>
+
         <Pressable
-          style={styles.primaryBtn}
           disabled={currentCards.length === 0}
           onPress={() => {
             setShowMeaning(false);
@@ -570,14 +840,22 @@ export default function CardsScreen() {
               setCardIndex((v) => (v + 1) % currentCards.length);
             }
           }}
+          style={styles.primaryBtn}
         >
           <Text style={styles.primaryBtnText}>
-            {mode === "lesson" && cardIndex === currentCards.length - 1 && currentCards.length > 0 ? "Hoàn thành & Quay lại" : "Next"}
+            {mode === "lesson" && cardIndex === currentCards.length - 1 && currentCards.length > 0
+              ? "Hoàn thành và quay lại"
+              : "Thẻ tiếp theo"}
           </Text>
         </Pressable>
+
         {mode === "mine" ? (
-          <Pressable style={styles.ghostDangerBtn} disabled={working || !currentCard} onPress={handleDeleteCurrentCard}>
-            <Text style={styles.ghostDangerText}>Xoa</Text>
+          <Pressable
+            disabled={working || !currentCard}
+            onPress={handleDeleteCurrentCard}
+            style={styles.ghostDangerBtn}
+          >
+            <Text style={styles.ghostDangerText}>Xóa</Text>
           </Pressable>
         ) : null}
       </View>
@@ -586,244 +864,547 @@ export default function CardsScreen() {
 }
 
 const styles = StyleSheet.create({
-  topBar: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: spacing.md,
-  },
-  tabRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  tabButton: {
-    backgroundColor: "#E9EEF8",
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 9,
-  },
-  tabButtonActive: {
-    backgroundColor: "#1F4FBF",
-  },
-  tabText: {
-    color: "#132B57",
-    fontSize: 12,
-    fontWeight: "800",
-  },
   actionButtons: {
     flexDirection: "row",
     gap: spacing.sm,
   },
-  iconBtn: {
-    alignItems: "center",
-    backgroundColor: "#E9EEF8",
-    borderRadius: radius.pill,
-    height: 36,
-    justifyContent: "center",
-    width: 36,
-  },
-  iconBtnPrimary: {
-    backgroundColor: "#1F4FBF",
+  buttonRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.md,
   },
   collectionCard: {
+    backgroundColor: "#FFF9F1",
     marginBottom: spacing.md,
     paddingVertical: spacing.sm,
+  },
+  collectionChip: {
+    backgroundColor: "#F3EFE5",
+    borderColor: "#E0D6C5",
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  collectionChipActive: {
+    backgroundColor: colors.primaryDark,
+    borderColor: colors.primaryDark,
+  },
+  collectionChipText: {
+    color: colors.primaryDark,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  collectionChipTextActive: {
+    color: "#FFFDF8",
+  },
+  collectionHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: spacing.sm,
   },
   chipRow: {
     flexDirection: "row",
     gap: spacing.sm,
+    paddingRight: spacing.sm,
   },
-  chip: {
-    backgroundColor: "#EEF2FB",
+  controlRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  deckCounter: {
+    alignItems: "center",
+    backgroundColor: "#F1E5D2",
     borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
+    justifyContent: "center",
+    minWidth: 66,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
-  chipActive: {
-    backgroundColor: "#CFDBF7",
+  deckCounterText: {
+    color: colors.primaryDark,
+    fontSize: 14,
+    fontWeight: "900",
   },
-  chipText: {
-    color: "#173267",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  panelCard: {
-    marginBottom: spacing.md,
-  },
-  panelTitle: {
-    color: "#173267",
-    fontSize: 16,
-    fontWeight: "800",
-    marginBottom: spacing.xs,
-  },
-  input: {
-    backgroundColor: "#F5F7FC",
-    borderColor: "#DFE6F5",
-    borderRadius: 12,
-    borderWidth: 1,
-    color: colors.text,
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 11,
-  },
-  jsonInput: {
-    minHeight: 170,
-    textAlignVertical: "top",
-  },
-  hint: {
-    color: colors.textMuted,
-    fontSize: 12,
-    marginTop: spacing.sm,
-  },
-  headline: {
+  deckHeader: {
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: spacing.sm,
     marginTop: spacing.sm,
   },
-  title: {
-    color: "#132B57",
+  deckSubtitle: {
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4,
+  },
+  deckTitle: {
+    color: colors.primaryDark,
     fontSize: 24,
     fontWeight: "900",
   },
-  counter: {
-    color: "#1F4FBF",
-    fontSize: 15,
-    fontWeight: "800",
+  emptyIconWrap: {
+    alignItems: "center",
+    backgroundColor: colors.primary,
+    borderRadius: 26,
+    height: 52,
+    justifyContent: "center",
+    marginBottom: spacing.md,
+    width: 52,
   },
-  flashcard: {
-    marginTop: spacing.md,
-    minHeight: 420,
+  emptyState: {
+    alignItems: "center",
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
   },
-  word: {
-    color: "#0E2652",
-    fontSize: 46,
-    fontWeight: "900",
-    marginTop: spacing.md,
+  emptyText: {
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 22,
+    marginTop: spacing.xs,
     textAlign: "center",
   },
-  pronRow: {
+  emptyTitle: {
+    color: colors.primaryDark,
+    fontSize: 28,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  example: {
+    color: "#355882",
+    fontSize: 15,
+    lineHeight: 23,
+    marginTop: 6,
+  },
+  flashcard: {
+    backgroundColor: "#FFFDF8",
+    marginTop: spacing.sm,
+    minHeight: 500,
+    overflow: "hidden",
+    padding: spacing.lg,
+  },
+  flashcardBadge: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: colors.primaryDark,
+    borderRadius: radius.pill,
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  flashcardBadgeText: {
+    color: "#FFFDF8",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  flashcardGlowA: {
+    backgroundColor: "rgba(15,107,98,0.08)",
+    borderRadius: 180,
+    height: 220,
+    position: "absolute",
+    right: -80,
+    top: -20,
+    width: 220,
+  },
+  flashcardGlowB: {
+    backgroundColor: "rgba(224,138,46,0.09)",
+    borderRadius: 150,
+    height: 180,
+    left: -70,
+    position: "absolute",
+    top: 120,
+    width: 180,
+  },
+  flashcardTop: {
     alignItems: "center",
     flexDirection: "row",
-    justifyContent: "center",
-    marginTop: spacing.md,
+    justifyContent: "space-between",
   },
-  pronText: {
-    color: "#3B5C9E",
-    fontSize: 20,
-    marginRight: spacing.md,
-  },
-  listenBtn: {
+  ghostBtn: {
     alignItems: "center",
-    backgroundColor: "#1F4FBF",
+    backgroundColor: "#EAF0F3",
     borderRadius: radius.pill,
-    height: 38,
+    flex: 1,
     justifyContent: "center",
-    width: 38,
+    minHeight: 46,
+    paddingHorizontal: spacing.md,
   },
-  voiceRow: {
+  ghostBtnText: {
+    color: colors.primaryDark,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  ghostDangerBtn: {
     alignItems: "center",
+    backgroundColor: "#FDECE8",
+    borderRadius: radius.pill,
+    justifyContent: "center",
+    minHeight: 46,
+    paddingHorizontal: spacing.md,
+  },
+  ghostDangerText: {
+    color: "#BA3828",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  heroAccentA: {
+    backgroundColor: "rgba(224,138,46,0.12)",
+    borderRadius: 160,
+    height: 160,
+    left: -50,
+    position: "absolute",
+    top: 60,
+    width: 160,
+  },
+  heroAccentB: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 160,
+    height: 140,
+    position: "absolute",
+    right: -30,
+    top: -20,
+    width: 140,
+  },
+  heroBadge: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderColor: "rgba(255,255,255,0.08)",
+    borderRadius: 22,
+    borderWidth: 1,
+    justifyContent: "center",
+    minWidth: 88,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  heroBadgeLabel: {
+    color: "rgba(244,248,243,0.72)",
+    fontSize: 10,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  heroBadgeValue: {
+    color: "#FFF9F0",
+    fontSize: 24,
+    fontWeight: "900",
+  },
+  heroDescription: {
+    color: "rgba(244,248,243,0.78)",
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  heroEyebrow: {
+    color: "#9AE4D9",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1,
+    marginBottom: 4,
+    textTransform: "uppercase",
+  },
+  heroIconButton: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    height: 40,
+    justifyContent: "center",
+    width: 40,
+  },
+  heroIconButtonPrimary: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  heroShell: {
+    backgroundColor: "#143848",
+    borderColor: "#204F62",
+    marginBottom: spacing.md,
+    overflow: "hidden",
+    padding: spacing.md,
+  },
+  heroSummary: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: spacing.sm,
+    justifyContent: "space-between",
+    marginBottom: spacing.md,
+  },
+  heroSummaryMain: {
+    flex: 1,
+    minWidth: 0,
+  },
+  heroTitle: {
+    color: "#FFF9F0",
+    fontSize: 24,
+    fontWeight: "900",
+    lineHeight: 29,
+    marginBottom: 6,
+  },
+  heroTop: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: spacing.md,
+  },
+  inlineSwitch: {
+    backgroundColor: "#EDF3F4",
+    borderRadius: radius.pill,
+    flexDirection: "row",
+    marginBottom: spacing.sm,
+    padding: 4,
+  },
+  inlineSwitchItem: {
+    alignItems: "center",
+    borderRadius: radius.pill,
+    flex: 1,
+    justifyContent: "center",
+    paddingVertical: 10,
+  },
+  inlineSwitchItemActive: {
+    backgroundColor: colors.primaryDark,
+  },
+  inlineSwitchText: {
+    color: colors.primaryDark,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  inlineSwitchTextActive: {
+    color: "#FFFDF8",
+  },
+  input: {
+    backgroundColor: "#F6F4EE",
+    borderColor: "#DDD5C8",
+    borderRadius: 14,
+    borderWidth: 1,
+    color: colors.text,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+  },
+  jsonInput: {
+    minHeight: 180,
+  },
+  listenButton: {
+    alignItems: "center",
+    backgroundColor: colors.primary,
+    borderRadius: radius.pill,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
+  },
+  meaning: {
+    color: colors.primaryDark,
+    fontSize: 24,
+    fontWeight: "900",
+    marginBottom: spacing.sm,
+    marginTop: 6,
+  },
+  meaningBox: {
+    backgroundColor: "rgba(255,255,255,0.74)",
+    borderColor: "#E4DECF",
+    borderRadius: 18,
+    borderWidth: 1,
+    marginTop: spacing.lg,
+    minHeight: 160,
+    padding: spacing.md,
+  },
+  meaningLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  modePill: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderColor: "rgba(255,255,255,0.08)",
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  modePillActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  modePillText: {
+    color: "#F4F8F3",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  modePillTextActive: {
+    color: "#FFFDF8",
+  },
+  modePills: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.sm,
-    justifyContent: "center",
-    marginTop: spacing.sm,
   },
-  tinyBtn: {
-    backgroundColor: "#ECF1FD",
+  panelCard: {
+    backgroundColor: "#FFF8F0",
+    marginBottom: spacing.md,
+  },
+  panelHint: {
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 4,
+  },
+  panelTitle: {
+    color: colors.primaryDark,
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  primaryBtn: {
+    alignItems: "center",
+    backgroundColor: colors.primaryDark,
     borderRadius: radius.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 46,
+    paddingHorizontal: spacing.md,
   },
-  tinyBtnActive: {
-    backgroundColor: "#CFDBF7",
+  primaryBtnText: {
+    color: "#FFFDF8",
+    fontSize: 13,
+    fontWeight: "900",
   },
-  tinyBtnText: {
-    color: "#173267",
+  pronunciation: {
+    color: "#4A678E",
+    fontSize: 18,
+    marginTop: spacing.sm,
+    textAlign: "center",
+  },
+  readingStatus: {
+    color: colors.textMuted,
+    fontSize: 12,
+    flexShrink: 1,
+  },
+  sectionMeta: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  sectionTitle: {
+    color: colors.primaryDark,
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  smallChip: {
+    backgroundColor: "#EAF0F4",
+    borderRadius: radius.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  smallChipActive: {
+    backgroundColor: colors.primarySoft,
+  },
+  smallChipText: {
+    color: colors.primaryDark,
     fontSize: 11,
-    fontWeight: "800",
+    fontWeight: "900",
   },
-  meta: {
-    color: colors.textMuted,
-    fontSize: 12,
+  smallChipTextActive: {
+    color: colors.primaryDark,
   },
-  meaningBox: {
-    borderColor: "#E2E9F8",
-    borderRadius: 14,
+  statCard: {
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderColor: "rgba(255,255,255,0.08)",
+    borderRadius: 18,
     borderWidth: 1,
-    marginTop: spacing.lg,
-    minHeight: 130,
-    padding: spacing.md,
+    flex: 1,
+    minHeight: 74,
+    padding: spacing.sm,
   },
-  label: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: "800",
+  statLabel: {
+    color: "rgba(244,248,243,0.7)",
+    fontSize: 11,
+    marginTop: 4,
   },
-  meaning: {
-    color: "#10274F",
+  statValue: {
+    color: "#FFF9F0",
     fontSize: 22,
     fontWeight: "900",
-    marginBottom: spacing.sm,
-    marginTop: 4,
   },
-  example: {
-    color: "#27457B",
-    fontSize: 15,
-    lineHeight: 22,
-    marginTop: 4,
+  statValueSmall: {
+    color: "#FFF9F0",
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  statsRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  tapBox: {
+    alignItems: "center",
+    gap: spacing.xs,
+    justifyContent: "center",
+    minHeight: 120,
   },
   tapHint: {
     color: colors.textMuted,
     fontSize: 14,
-    marginTop: spacing.md,
     textAlign: "center",
   },
-  btnRow: {
+  tuningButton: {
+    alignItems: "center",
+    backgroundColor: "#EAF0F4",
+    borderRadius: radius.pill,
+    height: 30,
+    justifyContent: "center",
+    width: 30,
+  },
+  tuningButtonText: {
+    color: colors.primaryDark,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  tuningControls: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  tuningGrid: {
     flexDirection: "row",
     gap: spacing.sm,
     marginTop: spacing.md,
   },
-  primaryBtn: {
-    alignItems: "center",
-    backgroundColor: "#1F4FBF",
-    borderRadius: radius.pill,
+  tuningGroup: {
+    backgroundColor: "rgba(246,244,238,0.78)",
+    borderColor: "#E3DACA",
+    borderRadius: 16,
+    borderWidth: 1,
     flex: 1,
-    justifyContent: "center",
-    minHeight: 42,
-    paddingHorizontal: spacing.md,
+    padding: spacing.sm,
   },
-  primaryBtnText: {
-    color: "#fff",
-    fontSize: 13,
-    fontWeight: "900",
-  },
-  ghostBtn: {
-    alignItems: "center",
-    backgroundColor: "#ECF1FD",
-    borderRadius: radius.pill,
-    flex: 1,
-    justifyContent: "center",
-    minHeight: 42,
-    paddingHorizontal: spacing.md,
-  },
-  ghostBtnText: {
-    color: "#173267",
-    fontSize: 13,
+  tuningLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
     fontWeight: "800",
   },
-  ghostDangerBtn: {
-    alignItems: "center",
-    backgroundColor: "#FCEBEA",
-    borderRadius: radius.pill,
-    justifyContent: "center",
-    minHeight: 42,
-    paddingHorizontal: spacing.md,
-  },
-  ghostDangerText: {
-    color: "#B42318",
-    fontSize: 13,
+  tuningValue: {
+    color: colors.primaryDark,
+    fontSize: 14,
     fontWeight: "900",
+    minWidth: 28,
+    textAlign: "center",
+  },
+  word: {
+    color: colors.primaryDark,
+    fontSize: 40,
+    fontWeight: "900",
+    lineHeight: 48,
+    marginTop: spacing.xl,
+    textAlign: "center",
   },
 });

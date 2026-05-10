@@ -56,6 +56,16 @@ export type UserLearningPathAssignment = {
   updatedAt: string;
 };
 
+export type UserStreak = {
+  email: string;
+  timezone: string;
+  currentLoginStreak: number;
+  longestLoginStreak: number;
+  lastLoginDate: string | null;
+  lastLoginAt: string | null;
+  todayLoggedIn: boolean;
+};
+
 export type UserLessonApiItem = {
   lessonId: number;
   moduleId: number | null;
@@ -107,6 +117,7 @@ export type UserRoadmap = {
   progressPercent: number;
   currentModuleId: number | null;
   assignedAt: string;
+  completedAt?: string | null;
   milestones: UserRoadmapMilestoneItem[];
 };
 
@@ -378,6 +389,7 @@ export type AnswerSubmission = {
 };
 
 export type UserProfileResponse = ApiResponse<UserProfile>;
+export type UserStreakResponse = ApiResponse<UserStreak>;
 export type FlashcardsResponse = ApiResponse<FlashcardApiItem[]>;
 export type FlashcardResponse = ApiResponse<FlashcardApiItem>;
 export type UserLearningPathAssignmentResponse =

@@ -54,7 +54,7 @@ type AdminCrudPanelProps<T> = {
 
 export default function AdminCrudPanel<T>({
   columns,
-  emptyText = "Chua co du lieu.",
+  emptyText = "Chưa có dữ liệu.",
   fields,
   getInitialValues,
   getItemId,
@@ -71,12 +71,9 @@ export default function AdminCrudPanel<T>({
   const [editingItem, setEditingItem] = useState<T | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [values, setValues] = useState<FormValues>(() => getInitialValues());
-  const [activeSelect, setActiveSelect] = useState<string | null>(null);
-
   const openCreate = () => {
     setEditingItem(null);
     setValues(getInitialValues());
-    setActiveSelect(null);
     setFormOpen(true);
   };
 
@@ -92,7 +89,6 @@ export default function AdminCrudPanel<T>({
 
   const closeForm = () => {
     setEditingItem(null);
-    setActiveSelect(null);
     setFormOpen(false);
   };
 
@@ -137,7 +133,7 @@ export default function AdminCrudPanel<T>({
               style={[styles.actionButton, styles.primaryButton]}
             >
               <Ionicons color={colors.surface} name="add" size={18} />
-              <Text style={styles.primaryButtonText}>Them moi</Text>
+              <Text style={styles.primaryButtonText}>Thêm mới</Text>
             </Pressable>
           ) : null}
         </View>
@@ -154,10 +150,10 @@ export default function AdminCrudPanel<T>({
             <View style={styles.formHeader}>
               <View>
                 <Text style={styles.formTitle}>
-                  {editingItem ? "Cap nhat ban ghi" : "Tao ban ghi moi"}
+                  {editingItem ? "Cập nhật bản ghi" : "Tạo bản ghi mới"}
                 </Text>
                 <Text style={styles.formSubtitle}>
-                  Nhap dung payload request backend dang yeu cau.
+                  Nhập đúng payload request backend đang yêu cầu.
                 </Text>
               </View>
               <Pressable onPress={closeForm} style={styles.iconButton}>
@@ -189,7 +185,7 @@ export default function AdminCrudPanel<T>({
                           value={Boolean(values[field.name])}
                         />
                         <Text style={styles.switchText}>
-                          {Boolean(values[field.name]) ? "Bat" : "Tat"}
+                          {Boolean(values[field.name]) ? "Bật" : "Tắt"}
                         </Text>
                       </View>
                     ) : null}
@@ -203,7 +199,7 @@ export default function AdminCrudPanel<T>({
                             {field.options?.find(
                               (option) =>
                                 String(values[field.name]) === option.value,
-                            )?.label ?? "Chon..."}
+                            )?.label ?? "Chọn..."}
                           </Text>
                         </View>
                         <View style={styles.selectDropdownAlwaysVisible}>
@@ -251,7 +247,7 @@ export default function AdminCrudPanel<T>({
                 onPress={closeForm}
                 style={styles.secondaryButton}
               >
-                <Text style={styles.secondaryButtonText}>Huy</Text>
+                <Text style={styles.secondaryButtonText}>Hủy</Text>
               </Pressable>
               <Pressable
                 disabled={working}
@@ -264,7 +260,7 @@ export default function AdminCrudPanel<T>({
                   size={18}
                 />
                 <Text style={styles.primaryButtonText}>
-                  {working ? "Dang luu..." : "Luu"}
+                  {working ? "Đang lưu..." : "Lưu"}
                 </Text>
               </Pressable>
             </View>
@@ -280,7 +276,7 @@ export default function AdminCrudPanel<T>({
                 {column.label}
               </Text>
             ))}
-            <Text style={[styles.headerCell, styles.actionCell]}>Actions</Text>
+            <Text style={[styles.headerCell, styles.actionCell]}>Thao tác</Text>
           </View>
           {records.map((item) => (
             <View key={getItemId(item)} style={styles.tableRow}>
@@ -318,7 +314,7 @@ export default function AdminCrudPanel<T>({
           ) : null}
           {loading ? (
             <View style={styles.tableRow}>
-              <Text style={styles.emptyText}>Dang tai du lieu...</Text>
+              <Text style={styles.emptyText}>Đang tải dữ liệu...</Text>
             </View>
           ) : null}
         </View>
@@ -387,9 +383,9 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   formWrap: {
-    backgroundColor: "#0E1728",
-    borderColor: "#2A3A55",
-    borderRadius: 14,
+    backgroundColor: "rgba(15,27,49,0.92)",
+    borderColor: "#2D496B",
+    borderRadius: 20,
     borderWidth: 1,
     marginBottom: spacing.md,
     padding: 18,
@@ -406,9 +402,9 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
   },
   modalCard: {
-    backgroundColor: "#0E1728",
-    borderColor: "#3A4A63",
-    borderRadius: 18,
+    backgroundColor: "#0E1B31",
+    borderColor: "#34557D",
+    borderRadius: 24,
     borderWidth: 1,
     maxHeight: "88%",
     maxWidth: 1120,
@@ -444,18 +440,18 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     alignItems: "center",
-    backgroundColor: "#152238",
-    borderColor: "#30425F",
-    borderRadius: 10,
+    backgroundColor: "#152742",
+    borderColor: "#41658F",
+    borderRadius: 14,
     borderWidth: 1,
     height: 40,
     justifyContent: "center",
     width: 40,
   },
   input: {
-    backgroundColor: "#0A1220",
-    borderColor: "#344765",
-    borderRadius: 10,
+    backgroundColor: "#091321",
+    borderColor: "#3D5B80",
+    borderRadius: 14,
     borderWidth: 1,
     color: colors.text,
     fontSize: 14,
@@ -473,8 +469,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   primaryButton: {
-    backgroundColor: "#2F6EA8",
-    shadowColor: "#2F6EA8",
+    backgroundColor: "#2E7CD4",
+    shadowColor: "#2E7CD4",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.34,
     shadowRadius: 22,
@@ -493,9 +489,9 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     alignItems: "center",
-    backgroundColor: "#152238",
+    backgroundColor: "#152742",
     borderColor: colors.border,
-    borderRadius: 10,
+    borderRadius: 14,
     borderWidth: 1,
     justifyContent: "center",
     minHeight: 40,
@@ -513,9 +509,9 @@ const styles = StyleSheet.create({
   },
   selectField: {
     alignItems: "center",
-    backgroundColor: "#0A1220",
-    borderColor: "#344765",
-    borderRadius: 10,
+    backgroundColor: "#091321",
+    borderColor: "#3D5B80",
+    borderRadius: 14,
     borderWidth: 1,
     flexDirection: "row",
     justifyContent: "space-between",
@@ -533,9 +529,9 @@ const styles = StyleSheet.create({
     top: 48,
     left: 0,
     right: 0,
-    backgroundColor: "#0A1228",
-    borderColor: "#344765",
-    borderRadius: 10,
+    backgroundColor: "#0B1728",
+    borderColor: "#3D5B80",
+    borderRadius: 14,
     borderWidth: 1,
     maxHeight: 220,
     overflow: "hidden",
@@ -604,7 +600,7 @@ const styles = StyleSheet.create({
     minWidth: "100%",
   },
   tableHeader: {
-    backgroundColor: "#152238",
+    backgroundColor: "#162946",
     borderBottomColor: colors.border,
     borderBottomWidth: 1,
     flexDirection: "row",
@@ -621,9 +617,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   tableScroller: {
-    backgroundColor: "#0E1728",
-    borderColor: "#2A3A55",
-    borderRadius: 14,
+    backgroundColor: "rgba(15,27,49,0.92)",
+    borderColor: "#2D496B",
+    borderRadius: 20,
     borderWidth: 1,
     overflow: "hidden",
     shadowColor: colors.shadow,

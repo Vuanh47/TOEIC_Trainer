@@ -3,24 +3,22 @@ import { Tabs } from "expo-router";
 import { ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors, radius } from "@/src/assets/styles/theme";
+import { colors } from "@/src/assets/styles/user-theme";
 
 type TabIconProps = {
   focused: boolean;
   label: string;
   icon: ReactNode;
-  elevated?: boolean;
 };
 
-function TabIcon({ focused, label, icon, elevated = false }: TabIconProps) {
+function TabIcon({ focused, label, icon }: TabIconProps) {
   return (
-    <View style={[styles.tabItem, elevated ? styles.tabItemElevated : null]}>
+    <View style={[styles.tabItem, focused ? styles.tabItemActive : null]}>
+      {focused ? <View style={styles.activeHalo} /> : null}
       <View
         style={[
           styles.iconWrap,
           focused ? styles.iconWrapActive : null,
-          elevated ? styles.iconWrapElevated : null,
-          focused && elevated ? styles.iconWrapElevatedActive : null,
         ]}
       >
         {icon}
@@ -38,6 +36,9 @@ export default function UserTabsLayout() {
       screenOptions={{
         headerShown: false,
         sceneStyle: { backgroundColor: colors.background },
+        tabBarHideOnKeyboard: true,
+        tabBarIconStyle: styles.tabBarIconSlot,
+        tabBarItemStyle: styles.tabBarItem,
         tabBarShowLabel: false,
         tabBarStyle: styles.tabBar,
       }}
@@ -51,8 +52,8 @@ export default function UserTabsLayout() {
               icon={
                 <Ionicons
                   color={focused ? colors.surface : colors.textMuted}
-                  name="home-outline"
-                  size={21}
+                  name={focused ? "home" : "home-outline"}
+                  size={20}
                 />
               }
               label="HOME"
@@ -69,8 +70,8 @@ export default function UserTabsLayout() {
               icon={
                 <Ionicons
                   color={focused ? colors.surface : colors.textMuted}
-                  name="sparkles-outline"
-                  size={21}
+                  name={focused ? "sparkles" : "sparkles-outline"}
+                  size={20}
                 />
               }
               label="PRACTICE"
@@ -83,13 +84,12 @@ export default function UserTabsLayout() {
         options={{
           tabBarIcon: ({ focused }) => (
             <TabIcon
-              elevated
               focused={focused}
               icon={
                 <MaterialCommunityIcons
-                  color={colors.surface}
-                  name="cards-outline"
-                  size={26}
+                  color={focused ? colors.surface : colors.textMuted}
+                  name={focused ? "cards" : "cards-outline"}
+                  size={20}
                 />
               }
               label="CARDS"
@@ -106,7 +106,7 @@ export default function UserTabsLayout() {
               icon={
                 <Ionicons
                   color={focused ? colors.surface : colors.textMuted}
-                  name="document-text-outline"
+                  name={focused ? "document-text" : "document-text-outline"}
                   size={20}
                 />
               }
@@ -125,7 +125,7 @@ export default function UserTabsLayout() {
                 <FontAwesome5
                   color={focused ? colors.surface : colors.textMuted}
                   name="user-circle"
-                  size={19}
+                  size={18}
                 />
               }
               label="PROFILE"
@@ -138,61 +138,80 @@ export default function UserTabsLayout() {
 }
 
 const styles = StyleSheet.create({
+  activeHalo: {
+    backgroundColor: "rgba(89,166,255,0.16)",
+    borderRadius: 34,
+    height: 68,
+    position: "absolute",
+    top: 24,
+    width: 58,
+  },
   iconWrap: {
     alignItems: "center",
-    borderRadius: radius.pill,
-    height: 42,
+    backgroundColor: "rgba(12,55,76,0.06)",
+    borderColor: "rgba(12,55,76,0.04)",
+    borderRadius: 18,
+    borderWidth: 1,
+    height: 50,
     justifyContent: "center",
-    width: 42,
+    width: 50,
   },
   iconWrapActive: {
     backgroundColor: colors.primary,
-    shadowColor: colors.primaryDark,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-  },
-  iconWrapElevated: {
-    backgroundColor: colors.primary,
     borderColor: "rgba(255,255,255,0.9)",
-    borderWidth: 4,
-    height: 76,
-    marginTop: -28,
+    borderWidth: 1,
     shadowColor: colors.primaryDark,
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.22,
-    shadowRadius: 24,
-    width: 76,
-  },
-  iconWrapElevatedActive: {
-    transform: [{ scale: 1.02 }],
+    shadowOpacity: 0.24,
+    shadowRadius: 22,
   },
   tabBar: {
-    backgroundColor: "rgba(255,255,255,0.95)",
+    backgroundColor: "rgba(255,255,255,0.97)",
     borderTopWidth: 0,
-    elevation: 0,
-    height: 94,
-    paddingBottom: 18,
-    paddingTop: 10,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    bottom: 0,
+    elevation: 12,
+    height: 108,
+    overflow: "visible",
+    paddingBottom: 16,
+    paddingTop: 8,
     position: "absolute",
+    shadowColor: "rgba(12,28,43,0.16)",
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+  },
+  tabBarIconSlot: {
+    height: 84,
+    marginTop: 0,
+    width: 74,
+  },
+  tabBarItem: {
+    height: 94,
+    justifyContent: "center",
+    padding: 0,
   },
   tabItem: {
     alignItems: "center",
-    gap: 4,
-    justifyContent: "flex-end",
-    marginTop: 10,
-    minWidth: 68,
+    gap: 6,
+    height: 84,
+    justifyContent: "center",
+    minWidth: 72,
+    position: "relative",
+    width: 72,
   },
-  tabItemElevated: {
-    marginTop: 0,
+  tabItemActive: {
+    transform: [{ translateY: -10 }],
   },
   tabLabel: {
     color: colors.textMuted,
     fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.7,
+    fontWeight: "900",
+    letterSpacing: 0.6,
   },
   tabLabelActive: {
     color: colors.primaryDark,
+    transform: [{ translateY: -1 }],
   },
 });

@@ -37,12 +37,26 @@ export default function LessonScreen() {
 
   useEffect(() => {
     if (Platform.OS === "web") return;
-    try {
-      const expoAv = require("expo-av");
-      setNativeVideoComponent(() => expoAv.Video);
-    } catch {
-      setNativeVideoMissing(true);
-    }
+    let cancelled = false;
+
+    const loadNativeVideo = async () => {
+      try {
+        const expoAv = await import("expo-av");
+        if (!cancelled) {
+          setNativeVideoComponent(() => expoAv.Video);
+        }
+      } catch {
+        if (!cancelled) {
+          setNativeVideoMissing(true);
+        }
+      }
+    };
+
+    void loadNativeVideo();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const loadLessons = useCallback(async () => {
@@ -58,7 +72,7 @@ export default function LessonScreen() {
         return records.find((item) => item.progressStatus === "IN_PROGRESS")?.lessonId ?? records[0]?.lessonId ?? null;
       });
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Khong the tai danh sach bai hoc.");
+      setErrorMessage(error instanceof Error ? error.message : "Không thể tải danh sách bài học.");
       setLessons([]);
       setSelectedLessonId(null);
     } finally {
@@ -75,11 +89,11 @@ export default function LessonScreen() {
   const completionValue = Math.max(0, Math.min(100, Math.round(currentLesson?.completionPercent ?? 0)));
   const allLessonsCompleted = lessons.length > 0 && lessons.every((lesson) => lesson.progressStatus === "COMPLETED");
 
-  const formatDuration = (seconds: number) => `${Math.max(1, Math.round(seconds / 60))} phut`;
+  const formatDuration = (seconds: number) => `${Math.max(1, Math.round(seconds / 60))} phút`;
   const formatStatus = (status: string) => {
-    if (status === "COMPLETED") return "Hoan thanh";
-    if (status === "IN_PROGRESS") return "Dang hoc";
-    return "Chua hoc";
+    if (status === "COMPLETED") return "Hoàn thành";
+    if (status === "IN_PROGRESS") return "Đang học";
+    return "Chưa học";
   };
 
   const openVideoUrl = async () => {
@@ -87,7 +101,7 @@ export default function LessonScreen() {
     try {
       await WebBrowser.openBrowserAsync(currentLesson.videoUrl);
     } catch (error) {
-      Alert.alert("Video", error instanceof Error ? error.message : "Khong mo duoc video.");
+      Alert.alert("Video", error instanceof Error ? error.message : "Không mở được video.");
     }
   };
 
@@ -105,7 +119,7 @@ export default function LessonScreen() {
       });
       await loadLessons();
     } catch (error) {
-      Alert.alert("Lesson", error instanceof Error ? error.message : "Khong cap nhat duoc tien do.");
+      Alert.alert("Lesson", error instanceof Error ? error.message : "Không cập nhật được tiến độ.");
     } finally {
       setUpdatingProgress(false);
     }
@@ -144,7 +158,7 @@ export default function LessonScreen() {
 
   const renderVideoPlayer = () => {
     if (!currentLesson?.videoUrl) {
-      return <Text style={styles.placeholderText}>Bai hoc nay chua co video.</Text>;
+      return <Text style={styles.placeholderText}>Bài học này chưa có video.</Text>;
     }
 
     if (Platform.OS === "web") {
@@ -182,7 +196,7 @@ export default function LessonScreen() {
     return (
       <View style={styles.placeholderWrap}>
         <Text style={styles.placeholderText}>
-          Can cai player mobile de phat video trong app: npx expo install expo-av
+          Cần cài player mobile để phát video trong app: `npx expo install expo-av`
         </Text>
       </View>
     );
@@ -191,7 +205,7 @@ export default function LessonScreen() {
   return (
     <UserScreen>
       <AppHeader
-        title={currentLesson?.lessonTitle ?? "Lesson Library"}
+        title={currentLesson?.lessonTitle ?? "Thư viện bài học"}
         leftIcon="chevron-back-outline"
         onLeftPress={() => router.back()}
         rightSlot={<Ionicons color={colors.primaryDark} name="person-circle" size={42} />}
@@ -201,39 +215,39 @@ export default function LessonScreen() {
         <View style={styles.videoFrame}>{renderVideoPlayer()}</View>
         <View style={styles.metaHeader}>
           <Text style={styles.moduleMeta}>
-            {currentLesson?.moduleTitle ?? "Chua co module"} | {currentLesson ? formatDuration(currentLesson.durationSeconds) : "--"}
+            {currentLesson?.moduleTitle ?? "Chưa có module"} | {currentLesson ? formatDuration(currentLesson.durationSeconds) : "--"}
           </Text>
           <Text style={styles.percentMeta}>{completionValue}%</Text>
         </View>
         <ProgressBar accentColor="#2E8B57" value={completionValue} />
-        <Text style={styles.descriptionText}>{currentLesson?.lessonDescription ?? "Chua co mo ta bai hoc."}</Text>
+        <Text style={styles.descriptionText}>{currentLesson?.lessonDescription ?? "Chưa có mô tả bài học."}</Text>
 
         <View style={styles.actionRow}>
           <Pressable style={styles.secondaryBtn} onPress={openVideoUrl}>
             <Ionicons name="open-outline" size={16} color="#173267" />
-            <Text style={styles.secondaryBtnText}>Mo link</Text>
+            <Text style={styles.secondaryBtnText}>Mở link</Text>
           </Pressable>
           <Pressable style={styles.primaryBtn} onPress={handleResumeLesson} disabled={updatingProgress}>
             <Ionicons name="play" size={16} color="#fff" />
-            <Text style={styles.primaryBtnText}>Tiep tuc</Text>
+            <Text style={styles.primaryBtnText}>Tiếp tục</Text>
           </Pressable>
         </View>
       </SurfaceCard>
 
       {nativeVideoMissing && Platform.OS !== "web" ? (
-        <Text style={styles.warningText}>Tip: cai `expo-av` de xem video truc tiep trong app mobile.</Text>
+        <Text style={styles.warningText}>Gợi ý: cài `expo-av` để xem video trực tiếp trong app mobile.</Text>
       ) : null}
       {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
 
-      <Text style={styles.sectionTitle}>Danh sach bai hoc</Text>
+      <Text style={styles.sectionTitle}>Danh sách bài học</Text>
       {loading ? (
         <View style={styles.loadingWrap}>
           <ActivityIndicator color={colors.primaryDark} />
-          <Text style={styles.loadingText}>Dang tai bai hoc...</Text>
+          <Text style={styles.loadingText}>Đang tải bài học...</Text>
         </View>
       ) : null}
 
-      {!loading && lessons.length === 0 ? <Text style={styles.emptyText}>Chua co bai hoc nao.</Text> : null}
+      {!loading && lessons.length === 0 ? <Text style={styles.emptyText}>Chưa có bài học nào.</Text> : null}
       {!loading &&
         lessons.map((lesson) => {
           const active = lesson.lessonId === currentLesson?.lessonId;
@@ -260,11 +274,11 @@ export default function LessonScreen() {
           disabled={!currentLesson || updatingProgress}
           onPress={handleCompleteVideosAndGoCards}
         >
-          <Text style={styles.completeBtnText}>Da xong video - sang luyen tu vung</Text>
+          <Text style={styles.completeBtnText}>Đã xong video, sang luyện từ vựng</Text>
         </Pressable>
       ) : (
         <Text style={styles.videoRequirementText}>
-          Xem tat ca video trong module ({"\u2265"}90%) de mo buoc tu vung.
+          Xem tất cả video trong module ({"\u2265"}90%) để mở bước từ vựng.
         </Text>
       )}
     </UserScreen>

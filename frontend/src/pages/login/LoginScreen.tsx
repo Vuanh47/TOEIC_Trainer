@@ -19,6 +19,8 @@ import { useAuth } from "@/src/hooks/use-auth";
 import AuthLayout from "@/src/layouts/AuthLayout";
 import { ApiError } from "@/src/services/api.client";
 import { login } from "@/src/services/auth.service";
+import { getUserRoadmap } from "@/src/services/user.service";
+import { isNoActiveLearningPathError } from "@/src/utils/api-errors";
 import { formatExpiry } from "@/src/utils/format";
 
 export default function LoginScreen() {
@@ -30,20 +32,20 @@ export default function LoginScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const emailError =
-    email.length > 0 && !email.includes("@") ? "Email khong hop le." : null;
+    email.length > 0 && !email.includes("@") ? "Email không hợp lệ." : null;
   const passwordError =
     password.length > 0 && password.trim().length === 0
-      ? "Mat khau khong duoc de trong."
+      ? "Mật khẩu không được để trống."
       : null;
 
   const handleLogin = async () => {
     if (email.trim().length === 0 || password.trim().length === 0) {
-      setErrorMessage("Vui long nhap day du email va mat khau.");
+      setErrorMessage("Vui lòng nhập đầy đủ email và mật khẩu.");
       return;
     }
 
     if (emailError || passwordError) {
-      setErrorMessage("Vui long kiem tra lai thong tin dang nhap.");
+      setErrorMessage("Vui lòng kiểm tra lại thông tin đăng nhập.");
       return;
     }
 
@@ -61,7 +63,17 @@ export default function LoginScreen() {
         userId: payload.data.user.id,
       });
       signIn(payload.data);
-      router.replace("/user/home");
+
+      try {
+        await getUserRoadmap(payload.data.accessToken);
+        router.replace("/user/home");
+      } catch (roadmapError) {
+        if (isNoActiveLearningPathError(roadmapError)) {
+          router.replace("/user/onboarding");
+          return;
+        }
+        router.replace("/user/home");
+      }
     } catch (error) {
       if (error instanceof ApiError) {
         const raw = error.message.trim().toLowerCase();
@@ -70,14 +82,14 @@ export default function LoginScreen() {
           raw.includes("bad credentials") ||
           raw.includes("invalid")
         ) {
-          setErrorMessage("Sai email hoac mat khau.");
+          setErrorMessage("Sai email hoặc mật khẩu.");
         } else {
           setErrorMessage(error.message);
         }
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage("Khong the dang nhap.");
+        setErrorMessage("Không thể đăng nhập.");
       }
     } finally {
       setLoading(false);
@@ -102,7 +114,7 @@ export default function LoginScreen() {
           </View>
 
           <Text style={styles.subtitle}>
-            Tiep tuc hanh trinh luyen thi TOEIC
+            Tiếp tục hành trình luyện thi TOEIC
           </Text>
         </View>
 
@@ -111,7 +123,7 @@ export default function LoginScreen() {
             autoCapitalize="none"
             error={emailError}
             keyboardType="email-address"
-            label="Dia chi email"
+            label="Địa chỉ email"
             leftIcon={
               <MaterialCommunityIcons
                 color={colors.textMuted}
@@ -120,7 +132,7 @@ export default function LoginScreen() {
               />
             }
             onChangeText={setEmail}
-            placeholder="Nhap email cua ban"
+            placeholder="Nhập email của bạn"
             variant="light"
             value={email}
           />
@@ -128,7 +140,7 @@ export default function LoginScreen() {
           <TextField
             autoCapitalize="none"
             error={passwordError}
-            label="Mat khau"
+            label="Mật khẩu"
             leftIcon={
               <MaterialCommunityIcons
                 color={colors.textMuted}
@@ -137,7 +149,7 @@ export default function LoginScreen() {
               />
             }
             onChangeText={setPassword}
-            placeholder="Nhap mat khau cua ban"
+            placeholder="Nhập mật khẩu của bạn"
             rightSlot={
               <FieldIconButton
                 onPress={() => setShowPassword((current) => !current)}
@@ -155,10 +167,10 @@ export default function LoginScreen() {
           />
 
           <Pressable
-            onPress={() => Alert.alert("Thong bao", "Chuc nang dang cap nhat.")}
+            onPress={() => Alert.alert("Thông báo", "Chức năng đang cập nhật.")}
             style={styles.linkWrap}
           >
-            <Text style={styles.linkText}>Quen mat khau?</Text>
+            <Text style={styles.linkText}>Quên mật khẩu?</Text>
           </Pressable>
 
           {errorMessage ? (
@@ -167,7 +179,7 @@ export default function LoginScreen() {
           <Text style={styles.debugText}>API endpoint: {API_BASE_URL}</Text>
 
           <PrimaryButton
-            label="DANG NHAP"
+            label="ĐĂNG NHẬP"
             loading={loading}
             onPress={handleLogin}
           />
@@ -177,8 +189,8 @@ export default function LoginScreen() {
             style={styles.registerWrap}
           >
             <Text style={styles.registerText}>
-              Chua co tai khoan?{" "}
-              <Text style={styles.registerHighlight}>Dang ky ngay</Text>
+              Chưa có tài khoản?{" "}
+              <Text style={styles.registerHighlight}>Đăng ký ngay</Text>
             </Text>
           </Pressable>
 
@@ -190,12 +202,12 @@ export default function LoginScreen() {
                   name="checkmark-circle"
                   size={22}
                 />
-                <Text style={styles.successTitle}>Dang nhap thanh cong</Text>
+                <Text style={styles.successTitle}>Đăng nhập thành công</Text>
               </View>
               <Text style={styles.successLine}>{auth.user.fullName}</Text>
               <Text style={styles.successMeta}>{auth.user.email}</Text>
               <Text style={styles.successMeta}>
-                Token het han sau {formatExpiry(auth.expiresIn)}
+                Token hết hạn sau {formatExpiry(auth.expiresIn)}
               </Text>
             </View>
           ) : null}

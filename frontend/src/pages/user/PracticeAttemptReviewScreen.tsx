@@ -12,7 +12,7 @@ import { getPracticeAttemptDetail } from "@/src/services/user-practice.service";
 import { UserPracticeAttemptDetailResponseData } from "@/src/types/user-api";
 
 function formatDateTime(value?: string | null) {
-  if (!value) return "Chua nop bai";
+  if (!value) return "Chưa nộp bài";
   return new Date(value).toLocaleString();
 }
 
@@ -33,15 +33,16 @@ export default function PracticeAttemptReviewScreen() {
 
   useEffect(() => {
     if (!auth.accessToken || !attemptId) return;
+    const accessToken = auth.accessToken;
 
     const loadAttempt = async () => {
       try {
         setLoading(true);
         setErrorMessage(null);
-        const response = await getPracticeAttemptDetail(auth.accessToken, attemptId);
+        const response = await getPracticeAttemptDetail(accessToken, attemptId);
         setAttempt(response.data ?? null);
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : "Khong the tai ket qua practice.");
+        setErrorMessage(error instanceof Error ? error.message : "Không thể tải kết quả practice.");
       } finally {
         setLoading(false);
       }
@@ -64,14 +65,14 @@ export default function PracticeAttemptReviewScreen() {
     return (
       <UserScreen>
         <AppHeader
-          title="Practice Review"
+          title="Xem lại practice"
           leftIcon="chevron-back-outline"
           onLeftPress={() => router.back()}
           rightSlot={<AvatarBadge label={auth.user?.fullName?.[0] || "U"} />}
         />
         <SurfaceCard>
-          <Text style={styles.errorTitle}>Khong tai duoc ket qua</Text>
-          <Text style={styles.errorText}>{errorMessage ?? "Du lieu attempt khong hop le."}</Text>
+          <Text style={styles.errorTitle}>Không tải được kết quả</Text>
+          <Text style={styles.errorText}>{errorMessage ?? "Dữ liệu attempt không hợp lệ."}</Text>
         </SurfaceCard>
       </UserScreen>
     );
@@ -84,8 +85,8 @@ export default function PracticeAttemptReviewScreen() {
   return (
     <UserScreen>
       <AppHeader
-        title="Practice Review"
-        subtitle="Module Exercises"
+        title="Xem lại practice"
+        subtitle="Bài tập theo module"
         leftIcon="chevron-back-outline"
         onLeftPress={() => router.back()}
         rightSlot={<AvatarBadge label={auth.user?.fullName?.[0] || "U"} />}
@@ -94,35 +95,35 @@ export default function PracticeAttemptReviewScreen() {
       <SurfaceCard style={styles.heroCard}>
         <View style={styles.heroTopRow}>
           <View style={styles.heroCopy}>
-            <Text style={styles.heroEyebrow}>Practice Result</Text>
+            <Text style={styles.heroEyebrow}>Kết quả luyện tập</Text>
             <Text style={styles.heroTitle}>{attempt.practiceSetTitle}</Text>
-            <Text style={styles.heroMeta}>Nop bai: {formatDateTime(attempt.submittedAt)}</Text>
+            <Text style={styles.heroMeta}>Nộp bài: {formatDateTime(attempt.submittedAt)}</Text>
           </View>
           <View style={styles.scoreRing}>
             <Text style={styles.scoreRingValue}>{scorePercent}%</Text>
-            <Text style={styles.scoreRingLabel}>Score</Text>
+            <Text style={styles.scoreRingLabel}>Điểm</Text>
           </View>
         </View>
 
         <View style={styles.statGrid}>
           <View style={[styles.statCard, styles.statCardSuccess]}>
             <Text style={styles.statValue}>{attempt.correctCount ?? 0}</Text>
-            <Text style={styles.statLabel}>Cau dung</Text>
+            <Text style={styles.statLabel}>Câu đúng</Text>
           </View>
           <View style={[styles.statCard, styles.statCardDanger]}>
             <Text style={styles.statValue}>{incorrectCount}</Text>
-            <Text style={styles.statLabel}>Can xem lai</Text>
+            <Text style={styles.statLabel}>Cần xem lại</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{attempt.totalQuestions}</Text>
-            <Text style={styles.statLabel}>Tong cau</Text>
+            <Text style={styles.statLabel}>Tổng câu</Text>
           </View>
         </View>
       </SurfaceCard>
 
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Chi tiet dap an</Text>
-        <Text style={styles.sectionCaption}>Xem day du dap an chon, dap an dung va giai thich co san.</Text>
+        <Text style={styles.sectionTitle}>Chi tiết đáp án</Text>
+        <Text style={styles.sectionCaption}>Xem đầy đủ đáp án chọn, đáp án đúng và giải thích có sẵn.</Text>
       </View>
 
       {answers.map((answer, index) => {
@@ -186,13 +187,13 @@ export default function PracticeAttemptReviewScreen() {
                 >
                   <Ionicons color={isExpanded ? "#fff" : "#0E7C66"} name="book-outline" size={16} />
                   <Text style={[styles.explainButtonText, isExpanded ? styles.explainButtonTextActive : null]}>
-                    {isExpanded ? "An giai thich" : "Xem giai thich"}
+                    {isExpanded ? "Ẩn giải thích" : "Xem giải thích"}
                   </Text>
                 </Pressable>
 
                 {isExpanded ? (
                   <View style={styles.explainPanel}>
-                    <Text style={styles.explainTitle}>Giai thich cau hoi</Text>
+                    <Text style={styles.explainTitle}>Giải thích câu hỏi</Text>
                     <Text style={styles.explainBody}>{answer.explanation}</Text>
                   </View>
                 ) : null}

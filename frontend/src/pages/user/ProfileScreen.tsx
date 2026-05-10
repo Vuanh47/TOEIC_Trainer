@@ -1,23 +1,23 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors, radius, spacing } from "@/src/assets/styles/user-theme";
 import AppHeader, { AvatarBadge } from "@/src/components/user/AppHeader";
-import SectionTitle from "@/src/components/user/SectionTitle";
 import SurfaceCard from "@/src/components/user/SurfaceCard";
 import UserScreen from "@/src/components/user/UserScreen";
 import { useAuth } from "@/src/hooks/use-auth";
-import { notebookEntries, userProfile } from "@/src/pages/user/mock-data";
 import { logout } from "@/src/services/auth.service";
-import { getMyProfile, updateMyTargetScore } from "@/src/services/user.service";
-import { pushRoute } from "@/src/utils/navigation";
+import { getMyProfile, getMyStreak, updateMyTargetScore } from "@/src/services/user.service";
 
 export default function ProfileScreen() {
   const { auth, signOut } = useAuth();
-  const [targetScore, setTargetScore] = useState<number>(userProfile.targetScore);
-  const [fullName, setFullName] = useState<string>(userProfile.fullName);
+  const [targetScore, setTargetScore] = useState<number>(auth.user?.targetScore ?? 0);
+  const [fullName, setFullName] = useState<string>(auth.user?.fullName ?? "");
+  const [email, setEmail] = useState<string>(auth.user?.email ?? "");
+  const [currentLevel, setCurrentLevel] = useState<string>(auth.user?.currentLevel ?? "");
+  const [streakDays, setStreakDays] = useState<number>(0);
   const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
@@ -26,18 +26,30 @@ export default function ProfileScreen() {
     async function loadProfile() {
       if (!auth.accessToken) return;
       try {
-        const response = await getMyProfile(auth.accessToken);
-        setTargetScore(response.data.targetScore);
-        setFullName(response.data.fullName);
+        const [profileResponse, streakResponse] = await Promise.all([
+          getMyProfile(auth.accessToken),
+          getMyStreak(auth.accessToken),
+        ]);
+
+        setTargetScore(profileResponse.data.targetScore);
+        setFullName(profileResponse.data.fullName);
+        setEmail(profileResponse.data.email);
+        setCurrentLevel(profileResponse.data.currentLevel);
+        setStreakDays(streakResponse.data.currentLoginStreak ?? 0);
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : "Khong the tai thong tin ca nhan.";
-        Alert.alert("Profile", message);
+          error instanceof Error ? error.message : "Không thể tải thông tin cá nhân.";
+        Alert.alert("Hồ sơ", message);
       }
     }
 
     loadProfile();
   }, [auth.accessToken]);
+
+  const displayInitial = useMemo(() => {
+    const source = fullName.trim() || email.trim() || "B";
+    return source.charAt(0).toUpperCase();
+  }, [email, fullName]);
 
   const increaseTarget = async () => {
     if (!auth.accessToken) return;
@@ -47,8 +59,8 @@ export default function ProfileScreen() {
       setTargetScore(response.data.targetScore);
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Khong the cap nhat muc tieu.";
-      Alert.alert("Profile", message);
+        error instanceof Error ? error.message : "Không thể cập nhật mục tiêu.";
+      Alert.alert("Hồ sơ", message);
     }
   };
 
@@ -59,7 +71,7 @@ export default function ProfileScreen() {
       setLoggingOut(true);
       await logout(auth.accessToken, auth.tokenType ?? "Bearer");
     } catch {
-      // best-effort call to backend logout
+      // best-effort
     } finally {
       signOut();
       setLoggingOut(false);
@@ -70,222 +82,160 @@ export default function ProfileScreen() {
   return (
     <UserScreen>
       <AppHeader
-        rightSlot={<AvatarBadge label="A" />}
-        title="Academic Concierge"
+        rightSlot={<AvatarBadge label={displayInitial} />}
+        subtitle="Thông tin cá nhân"
+        title="Hồ sơ học viên"
       />
 
-      <Text style={styles.eyebrow}>LUMINA LEXICON</Text>
-      <Text style={styles.title}>{fullName}</Text>
-      <Text style={styles.subtitle}>
-        Your personalized collection of linguistic insights and recurring challenges.
-      </Text>
-
-      <View style={styles.collectionStack}>
-        <SurfaceCard style={styles.collectionCard}>
-          <View style={styles.collectionBadgeRow}>
-            <View style={[styles.collectionIcon, { backgroundColor: "#F1F3FA" }]}>
-              <Ionicons color={colors.primaryDark} name="star" size={18} />
-            </View>
-            <View style={[styles.countPill, { backgroundColor: "#92F37F" }]}>
-              <Text style={styles.countText}>12 Items</Text>
+      <SurfaceCard style={styles.heroCard}>
+        <View style={styles.heroRow}>
+          <View style={styles.avatarLarge}>
+            <Text style={styles.avatarLargeText}>{displayInitial}</Text>
+          </View>
+          <View style={styles.heroCopy}>
+            <Text style={styles.heroName}>{fullName || "Chưa cập nhật họ tên"}</Text>
+            <Text style={styles.heroEmail}>{email || "Chưa có email"}</Text>
+            <View style={styles.levelBadge}>
+              <Text style={styles.levelBadgeText}>{currentLevel || "CHƯA XÁC ĐỊNH"}</Text>
             </View>
           </View>
-          <Text style={styles.collectionTitle}>Hay sai o day</Text>
-          <Text style={styles.collectionDesc}>
-            Common pitfalls and tricky grammatical structures found in Part 5 & 6.
-          </Text>
-        </SurfaceCard>
-
-        <SurfaceCard style={styles.collectionCard}>
-          <View style={styles.collectionBadgeRow}>
-            <View style={[styles.collectionIcon, { backgroundColor: "#DDFBDD" }]}>
-              <Ionicons color={colors.text} name="book-outline" size={20} />
-            </View>
-            <View style={[styles.countPill, { backgroundColor: "#D9E0FF" }]}>
-              <Text style={styles.countText}>8 Items</Text>
-            </View>
-          </View>
-          <Text style={styles.collectionTitle}>On truoc ngay thi</Text>
-          <Text style={styles.collectionDesc}>
-            Critical tips and vocabulary lists for high-speed review sessions.
-          </Text>
-        </SurfaceCard>
-      </View>
-
-      <SectionTitle
-        actionLabel="Sap xep"
-        onActionPress={() => pushRoute("/user/notebook")}
-        title="Tat ca muc da luu"
-      />
-      {notebookEntries.map((entry) => (
-        <Pressable
-          key={entry.id}
-          onPress={() => pushRoute("/user/notebook")}
-          style={styles.noteItem}
-        >
-          <Ionicons color="#B7BCCB" name="reorder-three-outline" size={18} />
-          <View style={styles.noteContent}>
-            <View style={styles.noteHeader}>
-              <View style={styles.noteCategory}>
-                <Text style={styles.noteCategoryText}>{entry.category}</Text>
-              </View>
-              <Text style={styles.noteDate}>{entry.createdAt}</Text>
-            </View>
-            <Text style={styles.noteTitle}>{entry.title}</Text>
-          </View>
-        </Pressable>
-      ))}
-
-      <Pressable onPress={() => pushRoute("/user/notebook")} style={styles.addButton}>
-        <Text style={styles.addButtonText}>THEM GHI CHU MOI</Text>
-      </Pressable>
+        </View>
+      </SurfaceCard>
 
       <SurfaceCard style={styles.statsCard}>
-        <Text style={styles.statsTitle}>Profile snapshot</Text>
-        <View style={styles.statsRow}>
-          <Text style={styles.statsLabel}>Target score</Text>
-          <Pressable onPress={increaseTarget}>
-            <Text style={styles.statsValue}>{targetScore}</Text>
-          </Pressable>
+        <Text style={styles.sectionTitle}>Tổng quan học tập</Text>
+
+        <View style={styles.statsGrid}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{targetScore}+</Text>
+            <Text style={styles.statLabel}>Mục tiêu TOEIC</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{streakDays}</Text>
+            <Text style={styles.statLabel}>Ngày học liên tiếp</Text>
+          </View>
         </View>
-        <View style={styles.statsRow}>
-          <Text style={styles.statsLabel}>Study streak</Text>
-          <Text style={styles.statsValue}>{userProfile.streakDays} ngay</Text>
-        </View>
-        <Pressable
-          disabled={loggingOut}
-          onPress={handleLogout}
-          style={({ pressed }) => [
-            styles.logoutButton,
-            pressed ? styles.logoutButtonPressed : null,
-            loggingOut ? styles.logoutButtonDisabled : null,
-          ]}
-        >
-          <Ionicons color="#FDECEC" name="log-out-outline" size={18} />
-          <Text style={styles.logoutText}>
-            {loggingOut ? "Dang xu ly..." : "Dang xuat"}
-          </Text>
+
+        <Pressable onPress={increaseTarget} style={styles.primaryButton}>
+          <Ionicons color={colors.surface} name="trending-up-outline" size={18} />
+          <Text style={styles.primaryButtonText}>Tăng mục tiêu thêm 5 điểm</Text>
         </Pressable>
       </SurfaceCard>
+
+      <SurfaceCard style={styles.infoCard}>
+        <Text style={styles.sectionTitle}>Thông tin tài khoản</Text>
+
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Họ và tên</Text>
+          <Text style={styles.infoValue}>{fullName || "--"}</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Email</Text>
+          <Text style={styles.infoValue}>{email || "--"}</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Trình độ hiện tại</Text>
+          <Text style={styles.infoValue}>{currentLevel || "--"}</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Mục tiêu hiện tại</Text>
+          <Text style={styles.infoValue}>{targetScore} điểm</Text>
+        </View>
+      </SurfaceCard>
+
+      <Pressable
+        disabled={loggingOut}
+        onPress={handleLogout}
+        style={({ pressed }) => [
+          styles.logoutButton,
+          pressed ? styles.logoutButtonPressed : null,
+          loggingOut ? styles.logoutButtonDisabled : null,
+        ]}
+      >
+        <Ionicons color="#FDECEC" name="log-out-outline" size={18} />
+        <Text style={styles.logoutText}>{loggingOut ? "Đang xử lý..." : "Đăng xuất"}</Text>
+      </Pressable>
     </UserScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  addButton: {
+  avatarLarge: {
     alignItems: "center",
-    alignSelf: "center",
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primaryDark,
     borderRadius: radius.pill,
-    marginTop: spacing.lg,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: 18,
+    height: 84,
+    justifyContent: "center",
+    width: 84,
   },
-  addButtonText: {
+  avatarLargeText: {
     color: colors.surface,
-    fontSize: 14,
+    fontSize: 30,
     fontWeight: "900",
-    letterSpacing: 0.8,
   },
-  collectionBadgeRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  heroCard: {
     marginBottom: spacing.xl,
   },
-  collectionCard: {
-    marginBottom: spacing.lg,
+  heroCopy: {
+    flex: 1,
   },
-  collectionDesc: {
+  heroEmail: {
+    color: colors.textMuted,
+    fontSize: 14,
+    marginTop: 4,
+  },
+  heroName: {
+    color: colors.primaryDark,
+    fontSize: 26,
+    fontWeight: "900",
+    lineHeight: 32,
+  },
+  heroRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.md,
+  },
+  infoCard: {
+    marginBottom: spacing.xl,
+  },
+  infoLabel: {
+    color: colors.textMuted,
+    fontSize: 14,
+  },
+  infoRow: {
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    paddingVertical: spacing.md,
+  },
+  infoValue: {
     color: colors.text,
     fontSize: 16,
-    lineHeight: 24,
+    fontWeight: "800",
+    marginTop: 4,
   },
-  collectionIcon: {
-    alignItems: "center",
-    borderRadius: radius.pill,
-    height: 56,
-    justifyContent: "center",
-    width: 56,
-  },
-  collectionStack: {
-    marginBottom: spacing.xl,
-  },
-  collectionTitle: {
-    color: colors.text,
-    fontSize: 24,
-    fontWeight: "900",
-    marginBottom: spacing.sm,
-  },
-  countPill: {
+  levelBadge: {
     alignSelf: "flex-start",
+    backgroundColor: colors.surfaceAlt,
     borderRadius: radius.pill,
+    marginTop: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: 8,
   },
-  countText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: "800",
-  },
-  eyebrow: {
+  levelBadgeText: {
     color: colors.primaryDark,
     fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 2.2,
-    marginBottom: spacing.sm,
-  },
-  noteCategory: {
-    backgroundColor: "#D2F2C8",
-    borderRadius: radius.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  noteCategoryText: {
-    color: "#1A7C2B",
-    fontSize: 11,
     fontWeight: "900",
-    letterSpacing: 1,
-    textTransform: "uppercase",
-  },
-  noteContent: {
-    flex: 1,
-  },
-  noteDate: {
-    color: colors.textMuted,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  noteHeader: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  noteItem: {
-    alignItems: "flex-start",
-    backgroundColor: "rgba(241,243,252,0.96)",
-    borderRadius: radius.lg,
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-    padding: spacing.md,
-  },
-  noteTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: "700",
-    lineHeight: 24,
+    letterSpacing: 0.6,
   },
   logoutButton: {
     alignItems: "center",
-    alignSelf: "flex-start",
+    alignSelf: "center",
     backgroundColor: "#C44C4C",
     borderRadius: radius.pill,
     flexDirection: "row",
     gap: spacing.xs,
-    marginTop: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: 14,
   },
   logoutButtonDisabled: {
     opacity: 0.78,
@@ -296,44 +246,54 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     color: "#FDECEC",
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "900",
     letterSpacing: 0.4,
     textTransform: "uppercase",
   },
-  statsCard: {
-    marginTop: spacing.xl,
-  },
-  statsLabel: {
-    color: colors.textMuted,
-    fontSize: 14,
-  },
-  statsRow: {
+  primaryButton: {
+    alignItems: "center",
+    backgroundColor: colors.primaryDark,
+    borderRadius: radius.pill,
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: spacing.md,
+    gap: spacing.sm,
+    justifyContent: "center",
+    marginTop: spacing.lg,
+    paddingVertical: 15,
   },
-  statsTitle: {
-    color: colors.text,
-    fontSize: 18,
+  primaryButtonText: {
+    color: colors.surface,
+    fontSize: 15,
     fontWeight: "900",
   },
-  statsValue: {
+  sectionTitle: {
     color: colors.primaryDark,
     fontSize: 18,
     fontWeight: "900",
+    marginBottom: spacing.md,
   },
-  subtitle: {
-    color: colors.text,
-    fontSize: 16,
-    lineHeight: 28,
+  statItem: {
+    backgroundColor: "rgba(255,255,255,0.72)",
+    borderRadius: radius.lg,
+    flex: 1,
+    minWidth: 0,
+    padding: spacing.md,
+  },
+  statLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 4,
+  },
+  statValue: {
+    color: colors.primaryDark,
+    fontSize: 24,
+    fontWeight: "900",
+  },
+  statsCard: {
     marginBottom: spacing.xl,
   },
-  title: {
-    color: colors.text,
-    fontSize: 40,
-    fontWeight: "900",
-    lineHeight: 44,
-    marginBottom: spacing.md,
+  statsGrid: {
+    flexDirection: "row",
+    gap: spacing.sm,
   },
 });

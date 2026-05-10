@@ -39,19 +39,20 @@ export default function PracticeSessionScreen() {
 
   useEffect(() => {
     if (!auth.accessToken || !parsedPracticeSetId) return;
+    const accessToken = auth.accessToken;
 
     const initPractice = async () => {
       try {
         setLoading(true);
         const [detailResp, attemptResp] = await Promise.all([
-          getPracticeSetDetail(auth.accessToken, parsedPracticeSetId),
-          startPractice(auth.accessToken, parsedPracticeSetId),
+          getPracticeSetDetail(accessToken, parsedPracticeSetId),
+          startPractice(accessToken, parsedPracticeSetId),
         ]);
         setPracticeSet(detailResp.data ?? null);
         setAttempt(attemptResp.data ?? null);
         setTimeLeft((detailResp.data?.durationMinutes ?? 0) * 60);
       } catch (error) {
-        Alert.alert("Practice", error instanceof Error ? error.message : "Khong the bat dau bai tap.");
+        Alert.alert("Practice", error instanceof Error ? error.message : "Không thể bắt đầu bài tập.");
         router.back();
       } finally {
         setLoading(false);
@@ -77,6 +78,7 @@ export default function PracticeSessionScreen() {
 
   const handleSubmit = useCallback(async (auto = false) => {
     if (!auth.accessToken || !attempt) return;
+    const accessToken = auth.accessToken;
 
     try {
       setLoading(true);
@@ -84,17 +86,17 @@ export default function PracticeSessionScreen() {
         practiceSetQuestionId: Number(id),
         selectedLabel,
       }));
-      const response = await submitPractice(auth.accessToken, attempt.id, { answers });
+      const response = await submitPractice(accessToken, attempt.id, { answers });
 
       if (!auto) {
-        Alert.alert("Practice", "Da nop bai thanh cong.");
+        Alert.alert("Practice", "Đã nộp bài thành công.");
       }
 
       replaceRoute(
         `/user/practice-attempt-review?attemptId=${response.data.attemptId}&moduleId=${parsedModuleId ?? ""}`,
       );
     } catch (error) {
-      Alert.alert("Practice", error instanceof Error ? error.message : "Khong the nop bai.");
+      Alert.alert("Practice", error instanceof Error ? error.message : "Không thể nộp bài.");
     } finally {
       setLoading(false);
     }
@@ -118,9 +120,9 @@ export default function PracticeSessionScreen() {
   }, [attempt, handleSubmit, loading, timeLeft]);
 
   const confirmSubmit = () => {
-    Alert.alert("Nop bai", "Ban co chac muon nop bai ngay bay gio?", [
-      { text: "Huy", style: "cancel" },
-      { text: "Nop bai", onPress: () => void handleSubmit(false) },
+    Alert.alert("Nộp bài", "Bạn có chắc muốn nộp bài ngay bây giờ?", [
+      { text: "Hủy", style: "cancel" },
+      { text: "Nộp bài", onPress: () => void handleSubmit(false) },
     ]);
   };
 
@@ -149,8 +151,8 @@ export default function PracticeSessionScreen() {
         </View>
       </View>
 
-      <Text style={styles.partText}>Practice Set {practiceSet.partNo ?? "--"}</Text>
-      <Text style={styles.counter}>Question {currentIndex + 1} / {questions.length}</Text>
+      <Text style={styles.partText}>Bộ practice Part {practiceSet.partNo ?? "--"}</Text>
+      <Text style={styles.counter}>Câu hỏi {currentIndex + 1} / {questions.length}</Text>
 
       <SurfaceCard style={styles.promptCard}>
         <Text style={styles.prompt}>{currentQuestion.questionText}</Text>
@@ -178,17 +180,17 @@ export default function PracticeSessionScreen() {
           disabled={currentIndex === 0}
           style={[styles.secondaryAction, currentIndex === 0 ? styles.actionDisabled : null]}
         >
-          <Text style={styles.secondaryActionText}>Previous</Text>
+          <Text style={styles.secondaryActionText}>Trước</Text>
         </Pressable>
         <Pressable
           onPress={() => setCurrentIndex((prev) => Math.min(questions.length - 1, prev + 1))}
           disabled={currentIndex === questions.length - 1}
           style={[styles.primaryAction, currentIndex === questions.length - 1 ? styles.actionDisabled : null]}
         >
-          <Text style={styles.primaryActionText}>Next</Text>
+          <Text style={styles.primaryActionText}>Tiếp</Text>
         </Pressable>
         <Pressable onPress={confirmSubmit} style={styles.submitAction}>
-          <Text style={styles.submitActionText}>Nop bai</Text>
+          <Text style={styles.submitActionText}>Nộp bài</Text>
         </Pressable>
       </View>
     </UserScreen>

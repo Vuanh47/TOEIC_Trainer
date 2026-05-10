@@ -15,6 +15,7 @@ import {
   UserGrammarListResponse,
   UserGrammarDetailResponse,
   UserFavoriteGrammarTitleListResponse,
+  UserStreakResponse,
 } from "@/src/types/user-api";
 
 function buildAuthHeaders(accessToken: string) {
@@ -25,6 +26,13 @@ function buildAuthHeaders(accessToken: string) {
 
 export function getMyProfile(accessToken: string) {
   return apiRequest<UserProfileResponse>("/api/users/me", {
+    headers: buildAuthHeaders(accessToken),
+    method: "GET",
+  });
+}
+
+export function getMyStreak(accessToken: string) {
+  return apiRequest<UserStreakResponse>("/api/users/me/streak", {
     headers: buildAuthHeaders(accessToken),
     method: "GET",
   });

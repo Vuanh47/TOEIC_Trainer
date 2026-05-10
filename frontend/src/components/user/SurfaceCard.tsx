@@ -15,14 +15,14 @@ export default function SurfaceCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
+    backgroundColor: "rgba(255,253,248,0.94)",
+    borderColor: "rgba(191,181,159,0.7)",
     borderRadius: radius.lg,
     borderWidth: 1,
     padding: spacing.lg,
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.16,
-    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.14,
+    shadowRadius: 28,
   },
 });

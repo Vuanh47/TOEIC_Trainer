@@ -19,8 +19,11 @@ export default function UserScreen({
 
   return (
     <SafeAreaView edges={["top"]} style={styles.safeArea}>
+      <View style={styles.topBand} />
+      <View style={styles.topPanel} />
       <View style={styles.glowTop} />
       <View style={styles.glowBottom} />
+      <View style={styles.glowAccent} />
       <View style={styles.mesh} />
       {scrollable ? (
         <ScrollView
@@ -40,31 +43,41 @@ export default function UserScreen({
 const styles = StyleSheet.create({
   content: {
     flex: 1,
-    paddingBottom: 128,
+    paddingBottom: 156,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
+    paddingTop: spacing.lg,
   },
   glowBottom: {
-    backgroundColor: "rgba(44, 185, 167, 0.16)",
+    backgroundColor: "rgba(224, 138, 46, 0.14)",
     borderRadius: 220,
-    bottom: 120,
-    height: 240,
+    bottom: 140,
+    height: 260,
     position: "absolute",
     right: -100,
-    width: 240,
-  },
-  glowTop: {
-    backgroundColor: "rgba(75, 123, 229, 0.16)",
-    borderRadius: 260,
-    height: 260,
-    left: -110,
-    position: "absolute",
-    top: 90,
     width: 260,
   },
+  glowAccent: {
+    backgroundColor: "rgba(15,107,98,0.1)",
+    borderRadius: 240,
+    height: 220,
+    left: "50%",
+    marginLeft: -110,
+    position: "absolute",
+    top: 160,
+    width: 220,
+  },
+  glowTop: {
+    backgroundColor: "rgba(15,107,98,0.12)",
+    borderRadius: 260,
+    height: 290,
+    left: -90,
+    position: "absolute",
+    top: 80,
+    width: 290,
+  },
   mesh: {
-    backgroundColor: "rgba(255,255,255,0.72)",
-    borderColor: colors.border,
+    backgroundColor: "rgba(255,253,248,0.8)",
+    borderColor: "rgba(191,181,159,0.56)",
     borderRadius: radius.xl,
     borderWidth: 1,
     bottom: 60,
@@ -79,5 +92,25 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+  },
+  topBand: {
+    backgroundColor: "#EDE4D2",
+    borderBottomLeftRadius: 64,
+    borderBottomRightRadius: 64,
+    height: 220,
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0,
+  },
+  topPanel: {
+    backgroundColor: "rgba(255,255,255,0.34)",
+    borderBottomLeftRadius: 54,
+    borderBottomRightRadius: 54,
+    height: 260,
+    left: 20,
+    position: "absolute",
+    right: 20,
+    top: 18,
   },
 });

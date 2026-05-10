@@ -24,8 +24,10 @@ export default function AuthLayout({
       <StatusBar barStyle="dark-content" />
       <View style={styles.backgroundTop} />
       <View style={styles.backgroundMid} />
+      <View style={styles.backgroundGrid} />
       <View style={styles.backgroundGlow} />
       <View style={styles.backgroundGlowSecondary} />
+      <View style={styles.backgroundOrb} />
 
       {scrollable ? (
         <ScrollView
@@ -44,55 +46,75 @@ export default function AuthLayout({
 
 const styles = StyleSheet.create({
   backgroundGlow: {
-    backgroundColor: 'rgba(201, 176, 138, 0.2)',
+    backgroundColor: 'rgba(224, 138, 46, 0.18)',
     borderRadius: 220,
-    height: 260,
+    height: 280,
     position: 'absolute',
-    right: -90,
-    top: 72,
-    width: 260,
+    right: -70,
+    top: 84,
+    width: 280,
   },
   backgroundGlowSecondary: {
-    backgroundColor: 'rgba(86, 120, 176, 0.12)',
+    backgroundColor: 'rgba(15, 107, 98, 0.12)',
     borderRadius: 240,
-    height: 240,
-    left: -110,
+    height: 260,
+    left: -90,
     position: 'absolute',
-    top: 200,
-    width: 240,
+    top: 280,
+    width: 260,
   },
-  backgroundMid: {
-    backgroundColor: '#BECBE3',
-    borderBottomLeftRadius: 52,
-    borderBottomRightRadius: 52,
-    height: 280,
+  backgroundGrid: {
+    backgroundColor: 'rgba(255,255,255,0.34)',
+    borderRadius: 44,
+    bottom: 120,
     left: 20,
     opacity: 0.55,
     position: 'absolute',
     right: 20,
-    top: 34,
+    top: 24,
+  },
+  backgroundOrb: {
+    backgroundColor: 'rgba(255,255,255,0.52)',
+    borderRadius: 200,
+    height: 180,
+    left: '50%',
+    marginLeft: -90,
+    position: 'absolute',
+    top: 118,
+    width: 180,
+  },
+  backgroundMid: {
+    backgroundColor: '#EDE4D3',
+    borderBottomLeftRadius: 72,
+    borderBottomRightRadius: 72,
+    height: 320,
+    left: 20,
+    opacity: 0.82,
+    position: 'absolute',
+    right: 20,
+    top: 30,
   },
   backgroundTop: {
-    backgroundColor: '#D7E0F0',
-    borderBottomLeftRadius: 52,
-    borderBottomRightRadius: 52,
-    height: 250,
+    backgroundColor: '#F4ECDD',
+    borderBottomLeftRadius: 76,
+    borderBottomRightRadius: 76,
+    height: 286,
     left: 0,
     position: 'absolute',
     right: 0,
     top: 0,
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(255,253,248,0.92)',
     borderRadius: radius.xl,
-    borderColor: '#E8EEF8',
+    borderColor: 'rgba(216,208,191,0.88)',
     borderWidth: 1,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.xl,
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 24 },
-    shadowOpacity: 0.14,
-    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 28 },
+    shadowOpacity: 0.18,
+    shadowRadius: 34,
   },
   cardCompact: {
     paddingHorizontal: spacing.md,
@@ -103,10 +125,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingBottom: spacing.xl,
     paddingHorizontal: spacing.lg,
-    paddingTop: 72,
+    paddingTop: 88,
   },
   safeArea: {
-    backgroundColor: '#E9EFFA',
+    backgroundColor: '#F7F1E7',
     flex: 1,
   },
 });
