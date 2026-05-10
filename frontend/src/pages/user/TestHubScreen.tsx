@@ -70,12 +70,12 @@ export default function TestHubScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         <AppHeader
           rightSlot={<AvatarBadge label={auth.user?.fullName?.[0] || "U"} />}
-          title="TOEIC Test Center"
+          title="Trung tâm thi TOEIC"
         />
 
-        <Text style={styles.title}>TOEIC Official Practice</Text>
+        <Text style={styles.title}>Luyện thi TOEIC chính thức</Text>
         <Text style={styles.subtitle}>
-          Thi thu co giai thich, theo doi thoi gian va kha nang nop bai som.
+          Thi thử có giải thích, theo dõi thời gian và khả năng nộp bài sớm.
         </Text>
 
         {tests.length > 0 ? (
@@ -87,20 +87,20 @@ export default function TestHubScreen() {
             <Text style={styles.sectionLabel}>{tests[0].testType}</Text>
             <Text style={styles.questionCounter}>{tests[0].title}</Text>
             <Text style={styles.examSnippet}>
-              {tests[0].description || "Ready to start your TOEIC journey?"}
+              {tests[0].description || "Sẵn sàng bắt đầu hành trình TOEIC của bạn?"}
             </Text>
             <View style={styles.examActions}>
               <Pressable
                 onPress={() => pushRoute(`/user/exam?testId=${tests[0].id}`)}
                 style={styles.primaryAction}
               >
-                <Text style={styles.primaryActionText}>Start Test</Text>
+                <Text style={styles.primaryActionText}>Bắt đầu test</Text>
               </Pressable>
             </View>
           </SurfaceCard>
         ) : null}
 
-        <Text style={styles.blockTitle}>Available Tests</Text>
+        <Text style={styles.blockTitle}>Danh sách bài test</Text>
         {tests.slice(1).map((test) => (
           <Pressable
             key={test.id}
@@ -110,14 +110,14 @@ export default function TestHubScreen() {
             <View style={styles.resultMain}>
               <Text style={styles.resultTitle}>{test.title}</Text>
               <Text style={styles.resultMeta}>
-                {test.testType} | {test.totalDurationMinutes} min
+                {test.testType} | {test.totalDurationMinutes} phút
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
           </Pressable>
         ))}
 
-        <Text style={[styles.blockTitle, styles.resultsTitle]}>Recent results</Text>
+        <Text style={[styles.blockTitle, styles.resultsTitle]}>Kết quả gần đây</Text>
         {attempts.length > 0 ? (
           attempts.map((attempt) => (
             <Pressable
@@ -128,7 +128,7 @@ export default function TestHubScreen() {
               <View style={styles.resultMain}>
                 <Text style={styles.resultTitle}>{attempt.testTitle}</Text>
                 <Text style={styles.resultMeta}>
-                  {new Date(attempt.startedAt).toLocaleDateString()} | {attempt.correctCount}/{attempt.totalQuestions} correct
+                  {new Date(attempt.startedAt).toLocaleDateString()} | {attempt.correctCount}/{attempt.totalQuestions} câu đúng
                 </Text>
                 <View style={styles.reviewPill}>
                   <Ionicons name="sparkles-outline" size={14} color="#0E7C66" />
@@ -144,7 +144,7 @@ export default function TestHubScreen() {
             </Pressable>
           ))
         ) : (
-          <Text style={styles.resultMeta}>Chua co ket qua nao.</Text>
+          <Text style={styles.resultMeta}>Chưa có kết quả nào.</Text>
         )}
       </ScrollView>
     </UserScreen>

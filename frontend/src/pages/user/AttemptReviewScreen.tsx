@@ -12,7 +12,7 @@ import { UserTestService } from "@/src/services/user-test.service";
 import { QuestionAnswerResult, QuestionExplainResponse, TestAttemptResponse } from "@/src/types/user-api";
 
 function formatDateTime(value?: string | null) {
-  if (!value) return "Chua nop bai";
+  if (!value) return "Chưa nộp bài";
   return new Date(value).toLocaleString();
 }
 
@@ -53,7 +53,7 @@ export default function AttemptReviewScreen() {
         const response = await service.getAttemptDetails(attemptId);
         setAttempt(response.data);
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : "Khong the tai chi tiet bai lam.");
+        setErrorMessage(error instanceof Error ? error.message : "Không thể tải chi tiết bài làm.");
       } finally {
         setLoading(false);
       }
@@ -99,7 +99,7 @@ export default function AttemptReviewScreen() {
     } catch (error) {
       setExplainErrors((prev) => ({
         ...prev,
-        [questionId]: error instanceof Error ? error.message : "Khong the tai giai thich AI.",
+        [questionId]: error instanceof Error ? error.message : "Không thể tải giải thích AI.",
       }));
     } finally {
       setExplainLoadingId(null);
@@ -120,14 +120,14 @@ export default function AttemptReviewScreen() {
     return (
       <UserScreen>
         <AppHeader
-          title="Review Attempt"
+          title="Xem lại bài làm"
           leftIcon="chevron-back-outline"
           onLeftPress={() => router.back()}
           rightSlot={<AvatarBadge label={auth.user?.fullName?.[0] || "U"} />}
         />
         <SurfaceCard style={styles.errorCard}>
-          <Text style={styles.errorTitle}>Khong tai duoc bai lam</Text>
-          <Text style={styles.errorText}>{errorMessage ?? "Du lieu attempt khong hop le."}</Text>
+          <Text style={styles.errorTitle}>Không tải được bài làm</Text>
+          <Text style={styles.errorText}>{errorMessage ?? "Dữ liệu attempt không hợp lệ."}</Text>
         </SurfaceCard>
       </UserScreen>
     );
@@ -136,8 +136,8 @@ export default function AttemptReviewScreen() {
   return (
     <UserScreen>
       <AppHeader
-        title="Review Attempt"
-        subtitle="AI Feedback"
+        title="Xem lại bài làm"
+        subtitle="Phản hồi AI"
         leftIcon="chevron-back-outline"
         onLeftPress={() => router.back()}
         rightSlot={<AvatarBadge label={auth.user?.fullName?.[0] || "U"} />}
@@ -146,35 +146,35 @@ export default function AttemptReviewScreen() {
       <SurfaceCard style={styles.heroCard}>
         <View style={styles.heroTopRow}>
           <View style={styles.heroCopy}>
-            <Text style={styles.heroEyebrow}>TOEIC Review</Text>
+            <Text style={styles.heroEyebrow}>Đánh giá TOEIC</Text>
             <Text style={styles.heroTitle}>{attempt.testTitle}</Text>
-            <Text style={styles.heroMeta}>Nop bai: {formatDateTime(attempt.submittedAt)}</Text>
+            <Text style={styles.heroMeta}>Nộp bài: {formatDateTime(attempt.submittedAt)}</Text>
           </View>
           <View style={styles.scoreRing}>
             <Text style={styles.scoreRingValue}>{scorePercent}%</Text>
-            <Text style={styles.scoreRingLabel}>Score</Text>
+            <Text style={styles.scoreRingLabel}>Điểm</Text>
           </View>
         </View>
 
         <View style={styles.statGrid}>
           <View style={[styles.statCard, styles.statCardSuccess]}>
             <Text style={styles.statValue}>{attempt.correctCount ?? 0}</Text>
-            <Text style={styles.statLabel}>Cau dung</Text>
+            <Text style={styles.statLabel}>Câu đúng</Text>
           </View>
           <View style={[styles.statCard, styles.statCardDanger]}>
             <Text style={styles.statValue}>{incorrectCount}</Text>
-            <Text style={styles.statLabel}>Can xem lai</Text>
+            <Text style={styles.statLabel}>Cần xem lại</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{attempt.totalQuestions}</Text>
-            <Text style={styles.statLabel}>Tong cau</Text>
+            <Text style={styles.statLabel}>Tổng câu</Text>
           </View>
         </View>
       </SurfaceCard>
 
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Cau hoi va dap an</Text>
-        <Text style={styles.sectionCaption}>Hien day du dap an va giai thich AI theo tung cau.</Text>
+        <Text style={styles.sectionTitle}>Câu hỏi và đáp án</Text>
+        <Text style={styles.sectionCaption}>Hiện đầy đủ đáp án và giải thích AI theo từng câu.</Text>
       </View>
 
       {answers.map((answer, index) => {
@@ -244,7 +244,7 @@ export default function AttemptReviewScreen() {
               >
                 <Ionicons color={isExpanded ? "#fff" : "#0E7C66"} name="sparkles-outline" size={16} />
                 <Text style={[styles.explainButtonText, isExpanded ? styles.explainButtonTextActive : null]}>
-                  {isExpanded ? "An giai thich AI" : explainData ? "Xem lai giai thich AI" : "Giai thich AI"}
+                  {isExpanded ? "Ẩn giải thích AI" : explainData ? "Xem lại giải thích AI" : "Giải thích AI"}
                 </Text>
               </Pressable>
 
@@ -253,7 +253,7 @@ export default function AttemptReviewScreen() {
                   {isLoadingExplain ? (
                     <View style={styles.inlineLoading}>
                       <ActivityIndicator color={colors.primary} />
-                      <Text style={styles.inlineLoadingText}>AI dang phan tich cau hoi nay.</Text>
+                      <Text style={styles.inlineLoadingText}>AI đang phân tích câu hỏi này.</Text>
                     </View>
                   ) : null}
 
@@ -263,16 +263,16 @@ export default function AttemptReviewScreen() {
                     <>
                       <View style={styles.explainBadgeRow}>
                         <View style={styles.explainBadge}>
-                          <Text style={styles.explainBadgeText}>Correct: {normalizeExplainText(explainData.correctAnswer)}</Text>
+                          <Text style={styles.explainBadgeText}>Đáp án đúng: {normalizeExplainText(explainData.correctAnswer)}</Text>
                         </View>
                         <View style={[styles.explainBadge, styles.explainBadgeMuted]}>
-                          <Text style={styles.explainBadgeText}>Your answer: {explainData.userAnswer}</Text>
+                          <Text style={styles.explainBadgeText}>Bạn chọn: {explainData.userAnswer}</Text>
                         </View>
                       </View>
 
                       {normalizedExplanation ? (
                         <>
-                          <Text style={styles.explainTitle}>Vi sao cau nay nhu vay?</Text>
+                          <Text style={styles.explainTitle}>Vì sao câu này như vậy?</Text>
                           <Text style={styles.explainBody}>{normalizedExplanation}</Text>
                         </>
                       ) : null}

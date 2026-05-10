@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors, radius, spacing } from "@/src/assets/styles/user-theme";
@@ -8,19 +8,19 @@ import SurfaceCard from "@/src/components/user/SurfaceCard";
 import UserScreen from "@/src/components/user/UserScreen";
 import { useAuth } from "@/src/hooks/use-auth";
 import { UserTestService } from "@/src/services/user-test.service";
-import { UserTestResponse, UserTestPartQuestionResponse, TestAttemptResponse } from "@/src/types/user-api";
+import { TestAttemptResponse, UserTestResponse } from "@/src/types/user-api";
 import { replaceRoute } from "@/src/utils/navigation";
 
 export default function ExamScreen() {
   const { testId } = useLocalSearchParams<{ testId: string }>();
   const { auth } = useAuth();
-  
+
   const [test, setTest] = useState<UserTestResponse | null>(null);
   const [attempt, setAttempt] = useState<TestAttemptResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [userAnswers, setUserAnswers] = useState<Record<number, string>>({}); // testPartQuestionId -> selectedLabel
-  const [timeLeft, setTimeLeft] = useState(0); // seconds
+  const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
+  const [timeLeft, setTimeLeft] = useState(0);
 
   const service = useMemo(() => {
     return auth.accessToken ? new UserTestService(auth.accessToken) : null;
@@ -28,8 +28,11 @@ export default function ExamScreen() {
 
   const allQuestions = useMemo(() => {
     if (!test?.parts) return [];
-    return test.parts.flatMap(part => 
-      (part.questions || []).map(q => ({ ...q, partName: part.partName }))
+    return test.parts.flatMap((part) =>
+      (part.questions || []).map((question) => ({
+        ...question,
+        partName: part.partName,
+      })),
     );
   }, [test]);
 
@@ -41,10 +44,10 @@ export default function ExamScreen() {
     const initTest = async () => {
       try {
         setLoading(true);
-        const id = parseInt(testId);
+        const id = Number.parseInt(testId, 10);
         const [testResp, attemptResp] = await Promise.all([
           service.getTestById(id),
-          service.startTest(id)
+          service.startTest(id),
         ]);
         setTest(testResp.data);
         setAttempt(attemptResp.data);
@@ -58,52 +61,17 @@ export default function ExamScreen() {
       }
     };
 
-    initTest();
+    void initTest();
   }, [service, testId]);
 
-  useEffect(() => {
-    if (timeLeft <= 0 || loading || !attempt) return;
-
-    const timer = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          autoSubmit();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [timeLeft, loading, attempt]);
-
-  const autoSubmit = () => {
-    Alert.alert("Hết giờ", "Thời gian làm bài đã hết. Hệ thống sẽ tự động nộp bài.");
-    performSubmit();
-  };
-
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s < 10 ? "0" : ""}${s}`;
-  };
-
-  const handleSelectOption = (label: string) => {
-    if (!currentQuestion) return;
-    setUserAnswers(prev => ({
-      ...prev,
-      [currentQuestion.id]: label
-    }));
-  };
-
-  const performSubmit = async () => {
+  const performSubmit = useCallback(async () => {
     if (!service || !attempt) return;
+
     try {
       setLoading(true);
       const answers = Object.entries(userAnswers).map(([id, label]) => ({
-        testPartQuestionId: parseInt(id),
-        selectedLabel: label
+        selectedLabel: label,
+        testPartQuestionId: Number.parseInt(id, 10),
       }));
       await service.submitAttempt(attempt.attemptId, { answers });
       Alert.alert("Thành công", "Bài thi của bạn đã được nộp.");
@@ -114,23 +82,51 @@ export default function ExamScreen() {
     } finally {
       setLoading(false);
     }
+  }, [attempt, service, userAnswers]);
+
+  useEffect(() => {
+    if (timeLeft <= 0 || loading || !attempt) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          Alert.alert("Hết giờ", "Thời gian làm bài đã hết. Hệ thống sẽ tự động nộp bài.");
+          void performSubmit();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [attempt, loading, performSubmit, timeLeft]);
+
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainSeconds = seconds % 60;
+    return `${minutes}:${remainSeconds < 10 ? "0" : ""}${remainSeconds}`;
   };
 
-  const handleSubmit = async () => {
-    Alert.alert(
-      "Nộp bài",
-      "Bạn có chắc chắn muốn nộp bài ngay bây giờ?",
-      [
-        { text: "Hủy", style: "cancel" },
-        { text: "Nộp bài", onPress: performSubmit }
-      ]
-    );
+  const handleSelectOption = (label: string) => {
+    if (!currentQuestion) return;
+    setUserAnswers((prev) => ({
+      ...prev,
+      [currentQuestion.id]: label,
+    }));
+  };
+
+  const handleSubmit = () => {
+    Alert.alert("Nộp bài", "Bạn có chắc chắn muốn nộp bài ngay bây giờ?", [
+      { text: "Hủy", style: "cancel" },
+      { text: "Nộp bài", onPress: () => void performSubmit() },
+    ]);
   };
 
   if (loading || !test || !currentQuestion) {
     return (
       <UserScreen>
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <View style={styles.loadingWrap}>
           <ActivityIndicator color={colors.primary} size="large" />
         </View>
       </UserScreen>
@@ -152,8 +148,8 @@ export default function ExamScreen() {
         </View>
       </View>
 
-      <Text style={styles.partText}>{(currentQuestion as any).partName}</Text>
-      <Text style={styles.counter}>Question {currentIndex + 1} / {allQuestions.length}</Text>
+      <Text style={styles.partText}>{(currentQuestion as typeof currentQuestion & { partName?: string }).partName}</Text>
+      <Text style={styles.counter}>Câu hỏi {currentIndex + 1} / {allQuestions.length}</Text>
 
       <SurfaceCard style={styles.promptCard}>
         <Text style={styles.prompt}>{currentQuestion.questionText}</Text>
@@ -166,15 +162,10 @@ export default function ExamScreen() {
           <Pressable
             key={option.id}
             onPress={() => handleSelectOption(option.optionLabel)}
-            style={[
-              styles.optionCard,
-              selected ? styles.optionSelected : null,
-            ]}
+            style={[styles.optionCard, selected ? styles.optionSelected : null]}
           >
-            <View style={[styles.optionBadge]}>
-              <Text style={[styles.optionBadgeText]}>
-                {option.optionLabel}
-              </Text>
+            <View style={styles.optionBadge}>
+              <Text style={styles.optionBadgeText}>{option.optionLabel}</Text>
             </View>
             <Text style={styles.optionText}>{option.optionText}</Text>
           </Pressable>
@@ -182,22 +173,22 @@ export default function ExamScreen() {
       })}
 
       <View style={styles.bottomActions}>
-        <Pressable 
-          onPress={() => setCurrentIndex(prev => Math.max(0, prev - 1))} 
+        <Pressable
           disabled={currentIndex === 0}
-          style={[styles.secondaryAction, currentIndex === 0 && { opacity: 0.5 }]}
+          onPress={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
+          style={[styles.secondaryAction, currentIndex === 0 ? styles.actionDisabled : null]}
         >
-          <Text style={styles.secondaryActionText}>Previous</Text>
+          <Text style={styles.secondaryActionText}>Trước</Text>
         </Pressable>
-        <Pressable 
-          onPress={() => setCurrentIndex(prev => Math.min(allQuestions.length - 1, prev + 1))} 
+        <Pressable
           disabled={currentIndex === allQuestions.length - 1}
-          style={[styles.primaryAction, currentIndex === allQuestions.length - 1 && { opacity: 0.5 }]}
+          onPress={() => setCurrentIndex((prev) => Math.min(allQuestions.length - 1, prev + 1))}
+          style={[styles.primaryAction, currentIndex === allQuestions.length - 1 ? styles.actionDisabled : null]}
         >
-          <Text style={styles.primaryActionText}>Next</Text>
+          <Text style={styles.primaryActionText}>Tiếp</Text>
         </Pressable>
         <Pressable onPress={handleSubmit} style={styles.submitAction}>
-          <Text style={styles.submitActionText}>Nop bai som</Text>
+          <Text style={styles.submitActionText}>Nộp bài sớm</Text>
         </Pressable>
       </View>
     </UserScreen>
@@ -205,6 +196,9 @@ export default function ExamScreen() {
 }
 
 const styles = StyleSheet.create({
+  actionDisabled: {
+    opacity: 0.5,
+  },
   bottomActions: {
     flexDirection: "row",
     gap: spacing.md,
@@ -216,15 +210,15 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     marginBottom: spacing.lg,
   },
-  highlight: {
-    color: colors.primaryDark,
-    textDecorationLine: "underline",
-    textDecorationColor: "#9CF09F",
-  },
   iconButton: {
     height: 40,
     justifyContent: "center",
     width: 40,
+  },
+  loadingWrap: {
+    alignItems: "center",
+    flex: 1,
+    justifyContent: "center",
   },
   optionBadge: {
     alignItems: "center",
@@ -234,16 +228,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 44,
   },
-  optionBadgeCorrect: {
-    backgroundColor: "#1A7C2B",
-  },
   optionBadgeText: {
     color: colors.text,
     fontSize: 16,
     fontWeight: "900",
-  },
-  optionBadgeTextActive: {
-    color: colors.surface,
   },
   optionCard: {
     alignItems: "center",
@@ -254,11 +242,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     minHeight: 106,
     paddingHorizontal: spacing.md,
-  },
-  optionCorrect: {
-    backgroundColor: "#E1F7DE",
-    borderColor: "#1A7C2B",
-    borderWidth: 2,
   },
   optionSelected: {
     borderColor: colors.primary,

@@ -69,7 +69,7 @@ export default function PracticeModuleScreen() {
         setPracticeSets([]);
         setSelectedSet(null);
         setErrorMessage(
-          setsResp.reason instanceof Error ? setsResp.reason.message : "Khong the tai practice sets.",
+          setsResp.reason instanceof Error ? setsResp.reason.message : "Không thể tải practice sets.",
         );
       }
 
@@ -82,7 +82,7 @@ export default function PracticeModuleScreen() {
         setAttempts([]);
       }
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Khong the tai luyen de.");
+      setErrorMessage(error instanceof Error ? error.message : "Không thể tải luyện đề.");
     } finally {
       setLoading(false);
     }
@@ -99,7 +99,7 @@ export default function PracticeModuleScreen() {
       const response = await getPracticeSetDetail(auth.accessToken, practiceSetId);
       setSelectedSet(response.data ?? null);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Khong the tai chi tiet bo bai tap.");
+      setErrorMessage(error instanceof Error ? error.message : "Không thể tải chi tiết bộ bài tập.");
     } finally {
       setDetailLoading(false);
     }
@@ -123,8 +123,8 @@ export default function PracticeModuleScreen() {
   return (
     <UserScreen>
       <AppHeader
-        title="Practice Sets"
-        subtitle="Module Exercises"
+        title="Bộ practice"
+        subtitle="Bài tập theo module"
         leftIcon="chevron-back-outline"
         onLeftPress={() => router.back()}
         rightSlot={<AvatarBadge label={auth.user?.fullName?.[0] || "U"} />}
@@ -133,14 +133,14 @@ export default function PracticeModuleScreen() {
       {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
 
       <SurfaceCard style={styles.headerCard}>
-        <Text style={styles.headerTitle}>Luyen de theo module</Text>
+        <Text style={styles.headerTitle}>Luyện đề theo module</Text>
         <Text style={styles.headerText}>
-          Day la cac bo bai tap admin da giao cho module nay. Chon mot bo de xem chi tiet va bat dau.
+          Đây là các bộ bài tập admin đã giao cho module này. Chọn một bộ để xem chi tiết và bắt đầu.
         </Text>
       </SurfaceCard>
 
       <SurfaceCard style={styles.listCard}>
-        <Text style={styles.blockTitle}>Danh sach practice sets</Text>
+        <Text style={styles.blockTitle}>Danh sách practice sets</Text>
         {practiceSets.map((set) => {
           const active = selectedSet?.id === set.id;
           return (
@@ -155,7 +155,7 @@ export default function PracticeModuleScreen() {
               <View style={styles.setBody}>
                 <Text style={styles.setTitle}>{set.title}</Text>
                 <Text style={styles.setMeta}>
-                  {set.durationMinutes ?? "--"} phut • Part {set.partNo ?? "--"}
+                  {set.durationMinutes ?? "--"} phút • Part {set.partNo ?? "--"}
                 </Text>
               </View>
               <Ionicons color={colors.textMuted} name="chevron-forward" size={18} />
@@ -163,36 +163,36 @@ export default function PracticeModuleScreen() {
           );
         })}
         {practiceSets.length === 0 ? (
-          <Text style={styles.emptyText}>Module nay chua co practice set duoc publish.</Text>
+          <Text style={styles.emptyText}>Module này chưa có practice set được publish.</Text>
         ) : null}
       </SurfaceCard>
 
       <SurfaceCard style={styles.detailCard}>
-        <Text style={styles.blockTitle}>Chi tiet bo bai tap</Text>
+        <Text style={styles.blockTitle}>Chi tiết bộ bài tập</Text>
         {detailLoading ? (
           <View style={styles.inlineLoading}>
             <ActivityIndicator color={colors.primaryDark} />
-            <Text style={styles.inlineLoadingText}>Dang tai chi tiet practice set...</Text>
+            <Text style={styles.inlineLoadingText}>Đang tải chi tiết practice set...</Text>
           </View>
         ) : selectedSet ? (
           <>
             <Text style={styles.detailTitle}>{selectedSet.title}</Text>
             <Text style={styles.detailText}>
-              {selectedSet.description || "Bo bai tap nay se giup ban cuong hoa kien thuc vua hoc trong module."}
+              {selectedSet.description || "Bộ bài tập này sẽ giúp bạn củng cố kiến thức vừa học trong module."}
             </Text>
 
             <View style={styles.statsRow}>
               <View style={styles.statBadge}>
                 <Text style={styles.statValue}>{selectedSet.durationMinutes ?? "--"}</Text>
-                <Text style={styles.statLabel}>Minutes</Text>
+                <Text style={styles.statLabel}>Phút</Text>
               </View>
               <View style={styles.statBadge}>
                 <Text style={styles.statValue}>{selectedSet.questions?.length ?? selectedSet.questionCount ?? "--"}</Text>
-                <Text style={styles.statLabel}>Questions</Text>
+                <Text style={styles.statLabel}>Câu hỏi</Text>
               </View>
               <View style={styles.statBadge}>
                 <Text style={styles.statValue}>{selectedSet.targetScore ?? "--"}</Text>
-                <Text style={styles.statLabel}>Target</Text>
+                <Text style={styles.statLabel}>Mục tiêu</Text>
               </View>
             </View>
 
@@ -200,12 +200,12 @@ export default function PracticeModuleScreen() {
               onPress={() => pushRoute(`/user/practice-session?practiceSetId=${selectedSet.id}&moduleId=${moduleId}`)}
               style={styles.primaryAction}
             >
-              <Text style={styles.primaryActionText}>Bat dau bai tap</Text>
+              <Text style={styles.primaryActionText}>Bắt đầu bài tập</Text>
             </Pressable>
 
             {currentAttempts.length > 0 ? (
               <View style={styles.attemptList}>
-                <Text style={styles.attemptTitle}>Lan lam gan day</Text>
+                <Text style={styles.attemptTitle}>Lần làm gần đây</Text>
                 {currentAttempts.map((attempt) => (
                   <Pressable
                     key={attempt.id}
@@ -216,7 +216,7 @@ export default function PracticeModuleScreen() {
                       <Text style={styles.attemptMain}>
                         {new Date(attempt.startedAt).toLocaleDateString()} • {attempt.correctCount ?? 0}/{attempt.totalQuestions}
                       </Text>
-                      <Text style={styles.attemptSub}>Cham de xem ket qua chi tiet</Text>
+                      <Text style={styles.attemptSub}>Chạm để xem kết quả chi tiết</Text>
                     </View>
                     <View style={styles.scorePill}>
                       <Text style={styles.scorePillText}>{Math.round(attempt.score ?? 0)}%</Text>
@@ -227,7 +227,7 @@ export default function PracticeModuleScreen() {
             ) : null}
           </>
         ) : (
-          <Text style={styles.emptyText}>Chon mot practice set de xem chi tiet.</Text>
+          <Text style={styles.emptyText}>Chọn một practice set để xem chi tiết.</Text>
         )}
       </SurfaceCard>
     </UserScreen>

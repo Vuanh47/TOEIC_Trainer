@@ -28,20 +28,20 @@ export default function AdminLoginScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const emailError =
-    email.length > 0 && !email.includes('@') ? 'Email khong hop le.' : null;
+    email.length > 0 && !email.includes('@') ? 'Email không hợp lệ.' : null;
   const passwordError =
     password.length > 0 && password.trim().length === 0
-      ? 'Mat khau khong duoc de trong.'
+      ? 'Mật khẩu không được để trống.'
       : null;
 
   const handleLogin = async () => {
     if (email.trim().length === 0 || password.trim().length === 0) {
-      setErrorMessage('Vui long nhap day du email va mat khau.');
+      setErrorMessage('Vui lòng nhập đầy đủ email và mật khẩu.');
       return;
     }
 
     if (emailError || passwordError) {
-      setErrorMessage('Vui long kiem tra lai thong tin dang nhap.');
+      setErrorMessage('Vui lòng kiểm tra lại thông tin đăng nhập.');
       return;
     }
 
@@ -60,14 +60,14 @@ export default function AdminLoginScreen() {
           raw.includes('bad credentials') ||
           raw.includes('invalid')
         ) {
-          setErrorMessage('Sai email hoac mat khau.');
+          setErrorMessage('Sai email hoặc mật khẩu.');
         } else {
           setErrorMessage(error.message);
         }
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Khong the dang nhap admin.');
+        setErrorMessage('Không thể đăng nhập admin.');
       }
     } finally {
       setLoading(false);
@@ -82,14 +82,14 @@ export default function AdminLoginScreen() {
           style={styles.keyboard}>
           <AdminLoginCard>
             <View style={styles.headerBlock}>
-              <Text style={styles.eyebrow}>Secure Admin Portal</Text>
+              <Text style={styles.eyebrow}>Cổng quản trị bảo mật</Text>
               <View style={styles.titleRow}>
-                <Text style={styles.title}>Admin Login</Text>
+                <Text style={styles.title}>Đăng nhập Admin</Text>
                 <View style={styles.titleAccent} />
               </View>
             </View>
             <Text style={styles.subtitle}>
-              Dang nhap bang tai khoan co quyen ADMIN de quan ly noi dung.
+              Đăng nhập bằng tài khoản có quyền ADMIN để quản lý nội dung.
             </Text>
 
             <View style={styles.form}>
@@ -97,7 +97,7 @@ export default function AdminLoginScreen() {
                 autoCapitalize="none"
                 error={emailError}
                 keyboardType="email-address"
-                label="Dia chi email"
+                label="Địa chỉ email"
                 leftIcon={
                   <MaterialCommunityIcons
                     color={colors.textMuted}
@@ -106,14 +106,14 @@ export default function AdminLoginScreen() {
                   />
                 }
                 onChangeText={setEmail}
-                placeholder="Nhap email admin"
+                placeholder="Nhập email admin"
                 value={email}
               />
 
               <TextField
                 autoCapitalize="none"
                 error={passwordError}
-                label="Mat khau"
+                label="Mật khẩu"
                 leftIcon={
                   <MaterialCommunityIcons
                     color={colors.textMuted}
@@ -122,7 +122,7 @@ export default function AdminLoginScreen() {
                   />
                 }
                 onChangeText={setPassword}
-                placeholder="Nhap mat khau admin"
+                placeholder="Nhập mật khẩu admin"
                 rightSlot={
                   <FieldIconButton
                     onPress={() => setShowPassword((current) => !current)}>
@@ -143,7 +143,7 @@ export default function AdminLoginScreen() {
               <Text style={styles.debugText}>API endpoint: {API_BASE_URL}</Text>
 
               <PrimaryButton
-                label="DANG NHAP ADMIN"
+                label="ĐĂNG NHẬP ADMIN"
                 loading={loading}
                 onPress={handleLogin}
               />

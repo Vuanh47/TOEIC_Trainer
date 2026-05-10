@@ -197,7 +197,7 @@ const videoFields = (
   {
     name: "videoUrl",
     label: "Video URL",
-    placeholder: uploadedVideoUrl ? "Da upload xong, giu URL nay de tao lesson." : "https://...",
+    placeholder: uploadedVideoUrl ? "Đã upload xong, giữ URL này để tạo lesson." : "https://...",
     type: "text",
     required: true,
   },
@@ -401,14 +401,14 @@ export default function AdminDashboardScreen() {
 
   const handleError = useCallback((error: unknown) => {
     setErrorMessage(
-      error instanceof Error ? error.message : "Khong the xu ly yeu cau.",
+      error instanceof Error ? error.message : "Không thể xử lý yêu cầu.",
     );
   }, []);
 
   const handleUploadVideoFile = useCallback(async () => {
     if (!services) return;
     if (Platform.OS !== "web") {
-      Alert.alert("Upload", "Upload file chi ho tro tren web.");
+      Alert.alert("Upload", "Upload file chỉ hỗ trợ trên web.");
       return;
     }
 
@@ -426,12 +426,12 @@ export default function AdminDashboardScreen() {
         const response = await services.videos.upload(file);
         const uploadedUrl = response.data?.playbackUrl ?? response.data?.secureUrl ?? "";
         if (!uploadedUrl) {
-          throw new Error("Upload xong nhung khong nhan duoc URL video.");
+          throw new Error("Upload xong nhưng không nhận được URL video.");
         }
 
         setUploadedVideoUrl(uploadedUrl);
         setUploadedVideoDuration(response.data?.durationSeconds ?? null);
-        Alert.alert("Upload", "Upload video thanh cong. URL da duoc dien vao form video.");
+        Alert.alert("Upload", "Upload video thành công. URL đã được điền vào form video.");
       } catch (error) {
         handleError(error);
       } finally {
@@ -676,28 +676,28 @@ export default function AdminDashboardScreen() {
   if (Platform.OS !== "web") {
     return (
       <AdminShell>
-        <Text style={styles.mobileNotice}>Admin dashboard chi ho tro web.</Text>
+        <Text style={styles.mobileNotice}>Bảng điều khiển admin chỉ hỗ trợ trên web.</Text>
       </AdminShell>
     );
   }
 
   const requirePath = () => {
-    if (!selectedPathId) throw new Error("Hay chon learning path truoc.");
+    if (!selectedPathId) throw new Error("Hãy chọn learning path trước.");
     return selectedPathId;
   };
 
   const requireMilestone = () => {
-    if (!selectedMilestoneId) throw new Error("Hay chon milestone truoc.");
+    if (!selectedMilestoneId) throw new Error("Hãy chọn milestone trước.");
     return selectedMilestoneId;
   };
 
   const requireModule = () => {
-    if (!selectedModuleId) throw new Error("Hay chon module truoc.");
+    if (!selectedModuleId) throw new Error("Hãy chọn module trước.");
     return selectedModuleId;
   };
 
   const requirePracticeSet = () => {
-    if (!selectedPracticeSetId) throw new Error("Hay chon practice set truoc.");
+    if (!selectedPracticeSetId) throw new Error("Hãy chọn practice set trước.");
     return selectedPracticeSetId;
   };
 
@@ -765,7 +765,7 @@ export default function AdminDashboardScreen() {
             );
           })}
           {items.length === 0 ? (
-            <Text style={styles.selectorEmpty}>Chua co du lieu</Text>
+            <Text style={styles.selectorEmpty}>Chưa có dữ liệu</Text>
           ) : null}
         </View>
       </ScrollView>
@@ -901,8 +901,8 @@ export default function AdminDashboardScreen() {
         records={milestones}
         subtitle={
           selectedPath
-            ? `Dang quan ly milestones cua ${selectedPath.title}`
-            : "Chon learning path"
+            ? `Đang quản lý milestones của ${selectedPath.title}`
+            : "Chọn learning path"
         }
         title="Learning Path Milestone APIs"
         working={working}
@@ -1170,13 +1170,13 @@ export default function AdminDashboardScreen() {
         subtitle={
           selectedModule
             ? `Module #${selectedModule.id}: ${selectedModule.title}`
-            : "Chon module"
+            : "Chọn module"
         }
         title="Flashcard APIs"
         working={working}
       />
       <View style={styles.uploadBox}>
-        <Text style={styles.uploadTitle}>Video upload</Text>
+        <Text style={styles.uploadTitle}>Tải video lên</Text>
         <Text style={styles.uploadSubtitle}>
           Upload file video len Cloudinary roi dung URL nay de tao lesson.
         </Text>
@@ -1186,7 +1186,7 @@ export default function AdminDashboardScreen() {
           style={styles.uploadButton}
         >
           <Text style={styles.uploadButtonText}>
-            {uploadingVideo ? "Dang upload..." : "Chon file video va upload"}
+            {uploadingVideo ? "Đang upload..." : "Chọn file video và upload"}
           </Text>
         </Pressable>
         <Text style={styles.uploadHint}>
@@ -1196,7 +1196,7 @@ export default function AdminDashboardScreen() {
           File da chon: {selectedVideoFile?.name ?? "(chua chon file)"}
         </Text>
         {uploadedVideoDuration ? (
-          <Text style={styles.uploadHint}>Duration tu Cloudinary: {uploadedVideoDuration}s</Text>
+          <Text style={styles.uploadHint}>Thời lượng từ Cloudinary: {uploadedVideoDuration}s</Text>
         ) : null}
       </View>
       <AdminCrudPanel
@@ -1382,11 +1382,11 @@ export default function AdminDashboardScreen() {
       <View style={styles.grammarTopBar}>
         <View style={styles.summaryRow}>
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Tong so</Text>
+            <Text style={styles.summaryLabel}>Tổng số</Text>
             <Text style={styles.summaryValue}>{grammars.length}</Text>
           </View>
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Dang hien</Text>
+            <Text style={styles.summaryLabel}>Đang hiển thị</Text>
             <Text style={styles.summaryValue}>
               {grammars.filter((item) => item.active).length}
             </Text>
@@ -1570,7 +1570,7 @@ export default function AdminDashboardScreen() {
           )
         }
         onDelete={(item) =>
-          confirmWeb(`Go question #${item.questionId} khoi practice set?`)
+          confirmWeb(`Gỡ question #${item.questionId} khỏi practice set?`)
             ? runAction(
                 () =>
                   services!.practiceSets
@@ -1612,8 +1612,8 @@ export default function AdminDashboardScreen() {
         records={practiceSetQuestions}
         subtitle={
           selectedPracticeSet
-            ? `Dang gan cau hoi cho ${selectedPracticeSet.title}`
-            : "Chon practice set"
+            ? `Đang gán câu hỏi cho ${selectedPracticeSet.title}`
+            : "Chọn practice set"
         }
         title="Practice Set Question APIs"
         working={working}
@@ -1773,7 +1773,7 @@ export default function AdminDashboardScreen() {
         working={working}
       />
 
-      {renderSelector("Assign Questions to Part", testParts, selectedTestPartId, setSelectedTestPartId)}
+      {renderSelector("Gán câu hỏi vào part", testParts, selectedTestPartId, setSelectedTestPartId)}
 
       <AdminCrudPanel
         columns={[
@@ -1799,7 +1799,7 @@ export default function AdminDashboardScreen() {
           )
         }
         onDelete={(item) =>
-          confirmWeb(`Go question #${item.questionId} khoi part?`)
+          confirmWeb(`Gỡ question #${item.questionId} khỏi part?`)
             ? runAction(
                 () => services!.tests.removeQuestion(selectedTestPartId!, item.id).then(() => undefined),
                 loadTestPartQuestions,
@@ -1808,7 +1808,7 @@ export default function AdminDashboardScreen() {
         }
         onRefresh={loadTestPartQuestions}
         records={testPartQuestions}
-        title="Part Question Assignment"
+        title="Gán câu hỏi cho part"
         working={working}
       />
     </View>
@@ -1842,25 +1842,25 @@ export default function AdminDashboardScreen() {
         <View style={styles.mainPanel}>
           <View style={styles.pageHeader}>
             <View>
-              <Text style={styles.pageEyebrow}>Backend Admin APIs</Text>
+              <Text style={styles.pageEyebrow}>API quản trị backend</Text>
               <Text style={styles.pageTitle}>{activeSectionLabel}</Text>
             </View>
             <View style={styles.metricRow}>
               <View style={styles.metricCard}>
                 <Text style={styles.metricValue}>{paths.length}</Text>
-                <Text style={styles.metricLabel}>Paths</Text>
+                <Text style={styles.metricLabel}>Lộ trình</Text>
               </View>
               <View style={styles.metricCard}>
                 <Text style={styles.metricValue}>{modules.length}</Text>
-                <Text style={styles.metricLabel}>Modules</Text>
+                <Text style={styles.metricLabel}>Module</Text>
               </View>
               <View style={styles.metricCard}>
                 <Text style={styles.metricValue}>{questions.length}</Text>
-                <Text style={styles.metricLabel}>Questions</Text>
+                <Text style={styles.metricLabel}>Câu hỏi</Text>
               </View>
               <View style={styles.metricCard}>
                 <Text style={styles.metricValue}>{grammars.length}</Text>
-                <Text style={styles.metricLabel}>Grammars</Text>
+                <Text style={styles.metricLabel}>Ngữ pháp</Text>
               </View>
             </View>
           </View>

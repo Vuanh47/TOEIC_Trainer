@@ -16,6 +16,7 @@ import {
 } from "@/src/services/user.service";
 import { vocabProgressStore } from "@/src/store/progress-store";
 import { UserModuleContent, UserRoadmapModuleItem } from "@/src/types/user-api";
+import { isNoActiveLearningPathError } from "@/src/utils/api-errors";
 import { pushRoute } from "@/src/utils/navigation";
 
 export default function RoadmapScreen() {
@@ -54,7 +55,7 @@ export default function RoadmapScreen() {
       if (!resolvedModuleId) {
         setModuleInfo(null);
         setModuleContent(null);
-        setErrorMessage("Khong tim thay module trong roadmap cua ban.");
+        setErrorMessage("Không tìm thấy module trong roadmap của bạn.");
         return;
       }
 
@@ -65,7 +66,11 @@ export default function RoadmapScreen() {
     } catch (error) {
       setModuleInfo(null);
       setModuleContent(null);
-      setErrorMessage(error instanceof Error ? error.message : "Khong the tai chi tiet module.");
+      if (isNoActiveLearningPathError(error)) {
+        setErrorMessage("Tài khoản này chưa có roadmap. Hãy chọn lộ trình trước.");
+        return;
+      }
+      setErrorMessage(error instanceof Error ? error.message : "Không thể tải chi tiết module.");
     } finally {
       setLoading(false);
     }
@@ -105,22 +110,26 @@ export default function RoadmapScreen() {
     try {
       setUnlocking(true);
       const response = await completeOrUnlockNextModule(auth.accessToken, activeModuleId, true);
+
+      if (response.data?.pathCompleted) {
+        const pathTitle = moduleInfo?.title ?? moduleContent?.title ?? "Khóa học TOEIC";
+        pushRoute(
+          `/user/path-complete?completed=true&moduleId=${activeModuleId}&pathTitle=${encodeURIComponent(pathTitle)}`,
+        );
+        return;
+      }
+
       await loadModule();
 
       if (response.data?.nextModuleUnlocked && response.data?.nextModuleId) {
-        Alert.alert("Module", "Da mo module tiep theo.");
+        Alert.alert("Module", "Đã mở module tiếp theo.");
         pushRoute(`/user/grammar?moduleId=${response.data.nextModuleId}`);
         return;
       }
 
-      if (response.data?.pathCompleted) {
-        pushRoute(`/user/path-complete?moduleId=${activeModuleId}`);
-        return;
-      }
-
-      Alert.alert("Module", "Da cap nhat trang thai module.");
+      Alert.alert("Module", "Đã cập nhật trạng thái module.");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Khong the cap nhat module.";
+      const message = error instanceof Error ? error.message : "Không thể cập nhật module.";
       Alert.alert("Module", message);
     } finally {
       setUnlocking(false);
@@ -134,17 +143,23 @@ export default function RoadmapScreen() {
         onLeftPress={() => router.back()}
         rightSlot={<Ionicons color={colors.primaryDark} name="map-outline" size={32} />}
         subtitle={moduleContent?.moduleType ?? moduleInfo?.moduleType ?? "ROADMAP MODULE"}
-        title={moduleContent?.title ?? moduleInfo?.title ?? "Module detail"}
+        title={moduleContent?.title ?? moduleInfo?.title ?? "Chi tiết module"}
       />
 
       {loading ? (
         <View style={styles.loadingWrap}>
           <ActivityIndicator color={colors.primaryDark} />
-          <Text style={styles.loadingText}>Dang tai noi dung module...</Text>
+          <Text style={styles.loadingText}>Đang tải nội dung module...</Text>
         </View>
       ) : null}
 
       {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+
+      {!loading && errorMessage?.includes("chua co roadmap") ? (
+        <Pressable onPress={() => pushRoute("/user/onboarding")} style={styles.actionButtonPrimary}>
+          <Text style={styles.actionButtonPrimaryText}>Bắt đầu onboarding</Text>
+        </Pressable>
+      ) : null}
 
       {shouldHighlightPractice ? (
         <SurfaceCard style={styles.successCard}>
@@ -153,17 +168,17 @@ export default function RoadmapScreen() {
               <Ionicons color={colors.surface} name="checkmark" size={18} />
             </View>
             <View style={styles.successBody}>
-              <Text style={styles.successTitle}>Da san sang cho practice</Text>
-              <Text style={styles.successText}>Ban da xong video va tu vung, co the vao luyen de ngay.</Text>
+              <Text style={styles.successTitle}>Đã sẵn sàng cho practice</Text>
+              <Text style={styles.successText}>Bạn đã xong video và từ vựng, có thể vào luyện đề ngay.</Text>
             </View>
           </View>
         </SurfaceCard>
       ) : null}
 
       <SurfaceCard style={styles.summaryCard}>
-        <Text style={styles.summaryTitle}>Tong quan module</Text>
+        <Text style={styles.summaryTitle}>Tổng quan module</Text>
         <Text style={styles.summaryDesc}>
-          {moduleContent?.description ?? moduleInfo?.description ?? "Chua co mo ta module."}
+          {moduleContent?.description ?? moduleInfo?.description ?? "Chưa có mô tả module."}
         </Text>
 
         <View style={styles.summaryStats}>
@@ -183,22 +198,22 @@ export default function RoadmapScreen() {
 
         <ProgressBar
           accentColor={colors.primary}
-          label="Tien do module"
+          label="Tiến độ module"
           rightLabel={`${Math.round(moduleInfo?.progressPercent ?? 0)}%`}
           value={moduleInfo?.progressPercent ?? 0}
         />
       </SurfaceCard>
 
       <SurfaceCard style={styles.listCard}>
-        <Text style={styles.listTitle}>Lo trinh hoan thanh</Text>
+        <Text style={styles.listTitle}>Lộ trình hoàn thành</Text>
         <View style={styles.flowBlock}>
           <View style={styles.flowRow}>
             <View style={[styles.flowBadge, allVideosCompleted ? styles.flowBadgeDone : null]}>
               <Text style={styles.flowBadgeText}>1</Text>
             </View>
             <View style={styles.flowBody}>
-              <Text style={styles.flowTitle}>Hoc video</Text>
-              <Text style={styles.flowSub}>{completedVideoLessons}/{totalVideoLessons} bai da hoan thanh</Text>
+              <Text style={styles.flowTitle}>Học video</Text>
+              <Text style={styles.flowSub}>{completedVideoLessons}/{totalVideoLessons} bài đã hoàn thành</Text>
             </View>
           </View>
           <View style={styles.flowRow}>
@@ -206,8 +221,8 @@ export default function RoadmapScreen() {
               <Text style={styles.flowBadgeText}>2</Text>
             </View>
             <View style={styles.flowBody}>
-              <Text style={styles.flowTitle}>Luyen tu vung</Text>
-              <Text style={styles.flowSub}>Mo sau khi xong video trong module</Text>
+              <Text style={styles.flowTitle}>Luyện từ vựng</Text>
+              <Text style={styles.flowSub}>Mở sau khi xong video trong module</Text>
             </View>
           </View>
           <View style={styles.flowRow}>
@@ -215,8 +230,8 @@ export default function RoadmapScreen() {
               <Text style={styles.flowBadgeText}>3</Text>
             </View>
             <View style={styles.flowBody}>
-              <Text style={styles.flowTitle}>Luyen practice</Text>
-              <Text style={styles.flowSub}>Mo khi buoc 1 va 2 da xong</Text>
+              <Text style={styles.flowTitle}>Luyện practice</Text>
+              <Text style={styles.flowSub}>Mở khi bước 1 và 2 đã xong</Text>
             </View>
           </View>
         </View>
@@ -228,7 +243,7 @@ export default function RoadmapScreen() {
             }}
             style={styles.actionButtonPrimary}
           >
-            <Text style={styles.actionButtonPrimaryText}>Buoc 1: Hoc video</Text>
+            <Text style={styles.actionButtonPrimaryText}>Bước 1: Học video</Text>
           </Pressable>
 
           <Pressable
@@ -244,7 +259,7 @@ export default function RoadmapScreen() {
             ]}
           >
             <Text style={vocabStepDone ? styles.actionButtonPrimaryText : styles.actionButtonSoftText}>
-              Buoc 2: Luyen tu vung
+              Bước 2: Luyện từ vựng
             </Text>
           </Pressable>
 
@@ -262,7 +277,7 @@ export default function RoadmapScreen() {
             ]}
           >
             <Text style={shouldHighlightPractice ? styles.actionButtonPrimaryText : styles.actionButtonSoftText}>
-              Buoc 3: Luyen practice
+              Bước 3: Luyện practice
             </Text>
           </Pressable>
 
@@ -272,14 +287,14 @@ export default function RoadmapScreen() {
             style={[styles.actionButtonDone, unlocking || !canCompleteModule ? styles.actionButtonDisabled : null]}
           >
             <Text style={styles.actionButtonPrimaryText}>
-              {unlocking ? "Dang cap nhat..." : "Buoc 4: Hoan thanh module"}
+              {unlocking ? "Đang cập nhật..." : "Bước 4: Hoàn thành module"}
             </Text>
           </Pressable>
         </View>
       </SurfaceCard>
 
       <SurfaceCard style={styles.listCard}>
-        <Text style={styles.listTitle}>Noi dung co san</Text>
+        <Text style={styles.listTitle}>Nội dung có sẵn</Text>
         {(moduleContent?.videoLessons ?? []).slice(0, 3).map((lesson) => (
           <View key={lesson.lessonId} style={styles.listRow}>
             <Ionicons color={colors.primaryDark} name="play-circle-outline" size={18} />
@@ -311,7 +326,7 @@ export default function RoadmapScreen() {
             <Ionicons color={colors.primaryDark} name="document-text-outline" size={18} />
             <View style={styles.listBody}>
               <Text style={styles.listMain}>{set.title}</Text>
-              <Text style={styles.listSub}>{set.durationMinutes ?? "--"} phut - Part {set.partNo ?? "--"}</Text>
+              <Text style={styles.listSub}>{set.durationMinutes ?? "--"} phút - Part {set.partNo ?? "--"}</Text>
             </View>
             <Ionicons color={colors.textMuted} name="chevron-forward" size={18} />
           </Pressable>
