@@ -985,10 +985,9 @@ export default function AdminDashboardScreen() {
           )
         }
         onDelete={(item) =>
-          confirmWeb(`Deactivate module "${item.title}"?`)
+          confirmWeb(`Xoa module "${item.title}"?`)
             ? runAction(
-                () =>
-                  services!.modules.deactivate(item.id).then(() => undefined),
+                () => services!.modules.delete(item.id).then(() => undefined),
                 loadBaseData,
               )
             : Promise.resolve()

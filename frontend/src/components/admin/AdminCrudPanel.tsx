@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -46,6 +46,7 @@ type AdminCrudPanelProps<T> = {
   onDelete?: (item: T) => Promise<void>;
   onRefresh?: () => void;
   onUpdate?: (item: T, values: FormValues) => Promise<void>;
+  pageSize?: number;
   records: T[];
   subtitle?: string;
   title: string;
@@ -63,6 +64,7 @@ export default function AdminCrudPanel<T>({
   onDelete,
   onRefresh,
   onUpdate,
+  pageSize = 6,
   records,
   subtitle,
   title,
@@ -70,7 +72,19 @@ export default function AdminCrudPanel<T>({
 }: AdminCrudPanelProps<T>) {
   const [editingItem, setEditingItem] = useState<T | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [page, setPage] = useState(1);
   const [values, setValues] = useState<FormValues>(() => getInitialValues());
+  const totalPages = Math.max(1, Math.ceil(records.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedRecords = records.slice(startIndex, startIndex + pageSize);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
   const openCreate = () => {
     setEditingItem(null);
     setValues(getInitialValues());
@@ -278,7 +292,7 @@ export default function AdminCrudPanel<T>({
             ))}
             <Text style={[styles.headerCell, styles.actionCell]}>Thao tác</Text>
           </View>
-          {records.map((item) => (
+          {paginatedRecords.map((item) => (
             <View key={getItemId(item)} style={styles.tableRow}>
               {columns.map((column) => (
                 <Text key={column.label} numberOfLines={2} style={styles.cell}>
@@ -319,6 +333,43 @@ export default function AdminCrudPanel<T>({
           ) : null}
         </View>
       </ScrollView>
+
+      {records.length > 0 ? (
+        <View style={styles.paginationBar}>
+          <Text style={styles.paginationSummary}>
+            {`${startIndex + 1}-${Math.min(startIndex + pageSize, records.length)} / ${records.length}`}
+          </Text>
+          <View style={styles.paginationControls}>
+            <Pressable
+              disabled={currentPage === 1}
+              onPress={() => setPage((prev) => Math.max(1, prev - 1))}
+              style={[
+                styles.paginationButton,
+                currentPage === 1 ? styles.paginationButtonDisabled : null,
+              ]}
+            >
+              <Ionicons color={colors.text} name="chevron-back" size={16} />
+            </Pressable>
+
+            <View style={styles.paginationPagePill}>
+              <Text style={styles.paginationPageText}>
+                {`Trang ${currentPage}/${totalPages}`}
+              </Text>
+            </View>
+
+            <Pressable
+              disabled={currentPage === totalPages}
+              onPress={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+              style={[
+                styles.paginationButton,
+                currentPage === totalPages ? styles.paginationButtonDisabled : null,
+              ]}
+            >
+              <Ionicons color={colors.text} name="chevron-forward" size={16} />
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -467,6 +518,51 @@ const styles = StyleSheet.create({
   },
   panel: {
     flex: 1,
+  },
+  paginationBar: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.sm,
+  },
+  paginationButton: {
+    alignItems: "center",
+    backgroundColor: "#152742",
+    borderColor: "#41658F",
+    borderRadius: 12,
+    borderWidth: 1,
+    height: 36,
+    justifyContent: "center",
+    width: 36,
+  },
+  paginationButtonDisabled: {
+    opacity: 0.45,
+  },
+  paginationControls: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  paginationPagePill: {
+    backgroundColor: "#132037",
+    borderColor: "#2A3B57",
+    borderRadius: 999,
+    borderWidth: 1,
+    minWidth: 110,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  paginationPageText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  paginationSummary: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
   },
   primaryButton: {
     backgroundColor: "#2E7CD4",

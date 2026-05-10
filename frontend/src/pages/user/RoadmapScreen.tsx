@@ -129,6 +129,17 @@ export default function RoadmapScreen() {
 
       Alert.alert("Module", "Đã cập nhật trạng thái module.");
     } catch (error) {
+      if (isNoActiveLearningPathError(error)) {
+        const pathTitle =
+          moduleContent?.title ??
+          moduleInfo?.title ??
+          "Khóa học TOEIC";
+        pushRoute(
+          `/user/path-complete?completed=true&moduleId=${activeModuleId}&pathTitle=${encodeURIComponent(pathTitle)}`,
+        );
+        return;
+      }
+
       const message = error instanceof Error ? error.message : "Không thể cập nhật module.";
       Alert.alert("Module", message);
     } finally {
