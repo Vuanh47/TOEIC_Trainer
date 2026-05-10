@@ -59,7 +59,7 @@ public class UserLearningService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        UserLearningPath activePath = getActivePath(user.getId());
+        UserLearningPath activePath = getLatestAccessiblePath(user.getId());
 
         List<LearningPathMilestone> milestones = learningPathMilestoneRepository
                 .findByLearningPathIdOrderBySortOrderAsc(activePath.getLearningPath().getId());
@@ -99,6 +99,7 @@ public class UserLearningService {
         response.setTargetScore(activePath.getLearningPath().getTargetScore());
         response.setStatus(activePath.getStatus().name());
         response.setAssignedAt(activePath.getAssignedAt());
+        response.setCompletedAt(activePath.getCompletedAt());
 
         List<UserRoadmapResponse.MilestoneItem> milestoneItems = milestones.stream()
                 .map(milestone -> toMilestoneItem(
@@ -128,10 +129,18 @@ public class UserLearningService {
                         .filter(item -> ProgressStatus.NOT_STARTED.name().equals(item.getProgressStatus()))
                         .map(UserRoadmapResponse.ModuleItem::getModuleId)
                         .findFirst()
-                        .orElseGet(() -> orderedModules.stream()
-                                .map(UserRoadmapResponse.ModuleItem::getModuleId)
-                                .findFirst()
-                                .orElse(null)));
+                        .orElseGet(() -> {
+                            if (PathStatus.COMPLETED.name().equals(activePath.getStatus().name())) {
+                                return orderedModules.isEmpty()
+                                        ? null
+                                        : orderedModules.get(orderedModules.size() - 1).getModuleId();
+                            }
+
+                            return orderedModules.stream()
+                                    .map(UserRoadmapResponse.ModuleItem::getModuleId)
+                                    .findFirst()
+                                    .orElse(null);
+                        }));
         response.setCurrentModuleId(currentModuleId);
 
         return response;
@@ -142,7 +151,7 @@ public class UserLearningService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        UserLearningPath activePath = getActivePath(user.getId());
+        UserLearningPath activePath = getLatestAccessiblePath(user.getId());
         List<LearningPathMilestone> milestones = learningPathMilestoneRepository
                 .findByLearningPathIdOrderBySortOrderAsc(activePath.getLearningPath().getId());
 
@@ -182,9 +191,11 @@ public class UserLearningService {
         return response;
     }
 
-    private UserLearningPath getActivePath(Long userId) {
+    private UserLearningPath getLatestAccessiblePath(Long userId) {
         return userLearningPathRepository
                 .findTopByUserIdAndStatusOrderByAssignedAtDesc(userId, PathStatus.ACTIVE)
+                .or(() -> userLearningPathRepository.findTopByUserIdAndStatusOrderByAssignedAtDesc(userId, PathStatus.COMPLETED))
+                .or(() -> userLearningPathRepository.findTopByUserIdOrderByAssignedAtDesc(userId))
                 .orElseThrow(() -> new AppException(ErrorCode.LEARNING_PATH_NOT_FOUND));
     }
 

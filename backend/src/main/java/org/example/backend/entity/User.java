@@ -7,6 +7,8 @@ import org.example.backend.enums.AuthProvider;
 import org.example.backend.enums.UserRole;
 import org.example.backend.enums.UserStatus;
 import jakarta.persistence.*;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -46,6 +48,18 @@ public class User extends BaseEntity {
 
     @Column(name = "target_score")
     private Integer targetScore;
+
+    @Column(name = "last_login_date")
+    private LocalDate lastLoginDate;
+
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
+
+    @Column(name = "current_login_streak")
+    private Integer currentLoginStreak = 0;
+
+    @Column(name = "longest_login_streak")
+    private Integer longestLoginStreak = 0;
 
     @Column(name = "is_premium", nullable = false)
     private Boolean premium = false;

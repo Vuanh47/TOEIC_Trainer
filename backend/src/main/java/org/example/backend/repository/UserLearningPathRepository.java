@@ -11,4 +11,6 @@ public interface UserLearningPathRepository extends JpaRepository<UserLearningPa
 	List<UserLearningPath> findByUserIdAndStatus(Long userId, PathStatus status);
 
 	Optional<UserLearningPath> findTopByUserIdAndStatusOrderByAssignedAtDesc(Long userId, PathStatus status);
+
+	Optional<UserLearningPath> findTopByUserIdOrderByAssignedAtDesc(Long userId);
 }

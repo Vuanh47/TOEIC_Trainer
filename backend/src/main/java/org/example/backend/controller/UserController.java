@@ -5,8 +5,10 @@ import org.example.backend.dto.request.CreateUserRequest;
 import org.example.backend.dto.request.UpdateTargetScoreRequest;
 import org.example.backend.dto.response.ApiResponse;
 import org.example.backend.dto.response.UserResponse;
+import org.example.backend.dto.response.UserStreakResponse;
 import org.example.backend.enums.SuccessCode;
 import org.example.backend.service.UserService;
+import org.example.backend.service.UserLoginStreakService;
 import org.example.backend.util.ApiResponseUtil;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,6 +23,7 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final UserLoginStreakService userLoginStreakService;
 
     @PostMapping
     public ResponseEntity<ApiResponse<UserResponse>> createUser(@RequestBody CreateUserRequest request) {
@@ -45,6 +48,13 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserResponse>> getMyInfo(Authentication authentication) {
         UserResponse response = userService.getMyInfo(authentication.getName());
         return ApiResponseUtil.success(response, SuccessCode.USER_INFO_RETRIEVED);
+    }
+
+    @GetMapping("/me/streak")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<UserStreakResponse>> getMyStreak(Authentication authentication) {
+        UserStreakResponse response = userLoginStreakService.getMyStreak(authentication.getName());
+        return ApiResponseUtil.success(response, SuccessCode.USER_STREAK_RETRIEVED);
     }
 
         @PutMapping("/me/target-score")
