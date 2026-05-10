@@ -1,4 +1,5 @@
 export { AdminFlashcardService } from '@/src/services/admin/admin-flashcard.service';
+export { AdminGrammarService } from '@/src/services/admin/admin-grammar.service';
 export { AdminLearningModuleService } from '@/src/services/admin/admin-learning-module.service';
 export { AdminLearningPathMilestoneService } from '@/src/services/admin/admin-learning-path-milestone.service';
 export { AdminLearningPathService } from '@/src/services/admin/admin-learning-path.service';
@@ -7,3 +8,4 @@ export { AdminPracticeSetService } from '@/src/services/admin/admin-practice-set
 export { AdminVideoLessonService } from '@/src/services/admin/admin-video-lesson.service';
 export { AdminQuestionService } from '@/src/services/admin/admin-question.service';
 export { AdminPermissionService } from '@/src/services/admin/admin-permission.service';
+export { AdminTestService } from '@/src/services/admin/admin-test.service';

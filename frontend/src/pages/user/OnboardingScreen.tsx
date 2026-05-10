@@ -3,7 +3,7 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, radius, spacing } from "@/src/assets/styles/theme";
+import { colors, radius, spacing } from "@/src/assets/styles/user-theme";
 import AppHeader, { AvatarBadge } from "@/src/components/user/AppHeader";
 import SurfaceCard from "@/src/components/user/SurfaceCard";
 import UserScreen from "@/src/components/user/UserScreen";
@@ -16,6 +16,8 @@ export default function OnboardingScreen() {
   const { auth } = useAuth();
   const [selectedGoalId, setSelectedGoalId] = useState("goal-500");
   const [submitting, setSubmitting] = useState(false);
+  const selectedGoal =
+    goalPlans.find((goal) => goal.id === selectedGoalId) ?? goalPlans[1];
 
   const handleAssignPath = async () => {
     if (!auth.accessToken) {
@@ -25,10 +27,12 @@ export default function OnboardingScreen() {
 
     try {
       setSubmitting(true);
-      await assignRecommendedPath(auth.accessToken);
+      await assignRecommendedPath(auth.accessToken, {
+        targetScore: selectedGoal.targetScore,
+      });
       replaceRoute("/user/home");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Khong the tao lo trinh.";
+      const message = error instanceof Error ? error.message : "Không thể tạo lộ trình.";
       Alert.alert("Onboarding", message);
     } finally {
       setSubmitting(false);
@@ -41,27 +45,27 @@ export default function OnboardingScreen() {
         leftIcon="chevron-back-outline"
         onLeftPress={() => router.back()}
         rightSlot={<AvatarBadge label="A" />}
-        title="Academic Concierge"
+        title="Cố vấn học tập"
       />
 
-      <Text style={styles.heroTitle}>Chinh phuc TOEIC theo cach chuyen biet.</Text>
+      <Text style={styles.heroTitle}>Chinh phục TOEIC theo cách chuyên biệt.</Text>
       <Text style={styles.heroSubtitle}>
-        Chao mung ban den voi lo trinh ca nhan hoa. Hay bat dau bang viec xac dinh vi
-        the hien tai cua ban de chung toi co the phuc vu tot nhat.
+        Chào mừng bạn đến với lộ trình cá nhân hóa. Hãy bắt đầu bằng việc xác định vị
+        thế hiện tại của bạn để chúng tôi có thể phục vụ tốt nhất.
       </Text>
 
       <Pressable onPress={handleAssignPath} style={styles.primaryButton}>
         <Text style={styles.primaryButtonText}>
-          {submitting ? "DANG TAO LO TRINH..." : "BAT DAU NGAY"}
+          {submitting ? "ĐANG TẠO LỘ TRÌNH..." : "BẮT ĐẦU NGAY"}
         </Text>
       </Pressable>
       <Pressable onPress={() => replaceRoute("/user/home")}>
-        <Text style={styles.linkText}>Toi da biet trinh do cua minh</Text>
+        <Text style={styles.linkText}>Tôi đã biết trình độ của mình</Text>
       </Pressable>
 
       <View style={styles.sectionHead}>
-        <Text style={styles.sectionTitle}>Chon muc tieu cua ban</Text>
-        <Text style={styles.sectionHint}>Hanh trinh bat dau tu day</Text>
+        <Text style={styles.sectionTitle}>Chọn mục tiêu của bạn</Text>
+        <Text style={styles.sectionHint}>Hành trình bắt đầu từ đây</Text>
       </View>
 
       {goalPlans.map((goal) => {
@@ -101,34 +105,36 @@ export default function OnboardingScreen() {
       })}
 
       <View style={styles.methodWrap}>
-        <Text style={styles.methodEyebrow}>PHUONG PHAP CONCIERGE</Text>
-        <Text style={styles.methodTitle}>Khong chi la ung dung, day la nguoi thay rieng cua ban.</Text>
+        <Text style={styles.methodEyebrow}>PHƯƠNG PHÁP CONCIERGE</Text>
+        <Text style={styles.methodTitle}>Không chỉ là ứng dụng, đây là người thầy riêng của bạn.</Text>
         <Text style={styles.methodText}>
-          Chung toi su dung thuat toan AI de phan tich diem yeu cua ban trong tung
-          Part cua TOEIC, tu do xay dung cac bai tap &quot;Flow State&quot; giup ban tien bo ma
-          khong thay ap luc.
+          Chúng tôi sử dụng thuật toán AI để phân tích điểm yếu của bạn trong từng
+          Part của TOEIC, từ đó xây dựng các bài tập &quot;Flow State&quot; giúp bạn tiến bộ mà
+          không thấy áp lực.
         </Text>
         <View style={styles.bulletRow}>
           <View style={styles.checkIcon}>
             <Ionicons color="#1A7C2B" name="checkmark" size={18} />
           </View>
-          <Text style={styles.bulletText}>Lo trinh 1-1 khong trung lap</Text>
+          <Text style={styles.bulletText}>Lộ trình 1-1 không trùng lặp</Text>
         </View>
         <View style={styles.bulletRow}>
           <View style={styles.checkIcon}>
             <Ionicons color="#1A7C2B" name="checkmark" size={18} />
           </View>
-          <Text style={styles.bulletText}>Kho de thi sat thuc te nhat 2024</Text>
+          <Text style={styles.bulletText}>Kho đề thi sát thực tế nhất 2024</Text>
         </View>
       </View>
 
       <View style={styles.stickyBar}>
         <View style={styles.stickyInfo}>
           <Ionicons color={colors.surface} name="sparkles-outline" size={18} />
-          <Text style={styles.stickyText}>Da chon: Muc tieu 500+</Text>
+          <Text style={styles.stickyText}>
+            Đã chọn: Mục tiêu {selectedGoal.targetScore}+
+          </Text>
         </View>
         <Pressable onPress={handleAssignPath} style={styles.stickyButton}>
-          <Text style={styles.stickyButtonText}>Tao lo trinh cho toi</Text>
+          <Text style={styles.stickyButtonText}>Tạo lộ trình cho tôi</Text>
         </Pressable>
       </View>
     </UserScreen>

@@ -1,5 +1,6 @@
 import { apiRequest, ApiError } from '@/src/services/api.client';
 import {
+  ApiResponse,
   LoginRequest,
   LoginResponse,
   RegisterRequest,
@@ -46,4 +47,16 @@ export async function register(
   });
 
   return validateRegisterResponse(response);
+}
+
+export async function logout(
+  accessToken: string,
+  tokenType = 'Bearer'
+): Promise<void> {
+  await apiRequest<ApiResponse<null>>('/api/auth/logout', {
+    headers: {
+      Authorization: `${tokenType} ${accessToken}`,
+    },
+    method: 'POST',
+  });
 }

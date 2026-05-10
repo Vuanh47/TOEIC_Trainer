@@ -22,6 +22,7 @@ type TextFieldProps = {
   rightSlot?: ReactNode;
   error?: string | null;
   compact?: boolean;
+  variant?: 'dark' | 'light';
   wrapperStyle?: ViewStyle;
 };
 
@@ -37,8 +38,11 @@ export default function TextField({
   rightSlot,
   error,
   compact = false,
+  variant = 'dark',
   wrapperStyle,
 }: TextFieldProps) {
+  const isLight = variant === 'light';
+
   return (
     <View
       style={[
@@ -46,13 +50,19 @@ export default function TextField({
         compact ? styles.wrapperCompact : null,
         wrapperStyle,
       ]}>
-      <Text style={[styles.label, compact ? styles.labelCompact : null]}>
+      <Text
+        style={[
+          styles.label,
+          compact ? styles.labelCompact : null,
+          isLight ? styles.labelLight : null,
+        ]}>
         {label}
       </Text>
       <View
         style={[
           styles.inputShell,
           compact ? styles.inputShellCompact : null,
+          isLight ? styles.inputShellLight : null,
           error ? styles.inputShellError : null,
         ]}>
         {leftIcon ? <View style={styles.leftIcon}>{leftIcon}</View> : null}
@@ -62,9 +72,13 @@ export default function TextField({
           keyboardType={keyboardType}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={isLight ? '#90A2BD' : colors.textMuted}
           secureTextEntry={secureTextEntry}
-          style={[styles.input, compact ? styles.inputCompact : null]}
+          style={[
+            styles.input,
+            compact ? styles.inputCompact : null,
+            isLight ? styles.inputLight : null,
+          ]}
           value={value}
         />
         {rightSlot ? <View style={styles.rightSlot}>{rightSlot}</View> : null}
@@ -117,20 +131,28 @@ const styles = StyleSheet.create({
   inputCompact: {
     fontSize: 15,
   },
+  inputLight: {
+    color: '#0F1D34',
+  },
   inputShell: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceAlt,
-    borderColor: colors.border,
+    backgroundColor: 'rgba(255,253,248,0.88)',
+    borderColor: 'rgba(191,181,159,0.74)',
     borderRadius: radius.md,
     borderWidth: 1,
     flexDirection: 'row',
     gap: spacing.sm,
-    minHeight: 58,
+    minHeight: 60,
     paddingHorizontal: spacing.md,
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+  },
+  inputShellLight: {
+    backgroundColor: 'rgba(255,250,243,0.96)',
+    borderColor: '#DDD0B8',
+    shadowOpacity: 0.05,
   },
   inputShellCompact: {
     minHeight: 50,
@@ -141,9 +163,13 @@ const styles = StyleSheet.create({
   },
   label: {
     color: colors.text,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
-    marginBottom: 10,
+    letterSpacing: 0.2,
+    marginBottom: 8,
+  },
+  labelLight: {
+    color: '#5D625D',
   },
   labelCompact: {
     fontSize: 13,

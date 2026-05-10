@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, spacing } from "@/src/assets/styles/theme";
+import { colors, spacing } from "@/src/assets/styles/user-theme";
 
 type SectionTitleProps = {
   title: string;
@@ -28,8 +28,10 @@ export default function SectionTitle({
 const styles = StyleSheet.create({
   action: {
     color: colors.primary,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "800",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
   },
   row: {
     alignItems: "center",
@@ -40,7 +42,7 @@ const styles = StyleSheet.create({
   title: {
     color: colors.text,
     flex: 1,
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: "900",
     paddingRight: spacing.md,
   },

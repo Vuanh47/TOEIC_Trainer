@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -33,6 +33,7 @@ export type AdminField = {
 export type AdminColumn<T> = {
   label: string;
   render: (item: T) => string;
+  width?: number;
 };
 
 type AdminCrudPanelProps<T> = {
@@ -46,15 +47,35 @@ type AdminCrudPanelProps<T> = {
   onDelete?: (item: T) => Promise<void>;
   onRefresh?: () => void;
   onUpdate?: (item: T, values: FormValues) => Promise<void>;
+  pageSize?: number;
   records: T[];
   subtitle?: string;
   title: string;
   working?: boolean;
 };
 
+const ACTION_COLUMN_WIDTH = 120;
+
+function resolveColumnWidth(label: string, explicitWidth?: number) {
+  if (explicitWidth) return explicitWidth;
+
+  const normalized = label.toLowerCase();
+
+  if (normalized === "id") return 88;
+  if (["part", "sort", "order", "active", "free"].includes(normalized)) return 112;
+  if (normalized.includes("id")) return 116;
+  if (normalized.includes("question")) return 420;
+  if (normalized.includes("description") || normalized.includes("content")) return 360;
+  if (normalized.includes("title") || normalized.includes("name")) return 260;
+  if (normalized.includes("source") || normalized.includes("type") || normalized.includes("status")) return 160;
+  if (normalized.includes("url")) return 320;
+
+  return 180;
+}
+
 export default function AdminCrudPanel<T>({
   columns,
-  emptyText = "Chua co du lieu.",
+  emptyText = "Chưa có dữ liệu.",
   fields,
   getInitialValues,
   getItemId,
@@ -63,6 +84,7 @@ export default function AdminCrudPanel<T>({
   onDelete,
   onRefresh,
   onUpdate,
+  pageSize = 6,
   records,
   subtitle,
   title,
@@ -70,13 +92,29 @@ export default function AdminCrudPanel<T>({
 }: AdminCrudPanelProps<T>) {
   const [editingItem, setEditingItem] = useState<T | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [page, setPage] = useState(1);
   const [values, setValues] = useState<FormValues>(() => getInitialValues());
-  const [activeSelect, setActiveSelect] = useState<string | null>(null);
+  const totalPages = Math.max(1, Math.ceil(records.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedRecords = records.slice(startIndex, startIndex + pageSize);
+  const columnWidths = columns.map((column) =>
+    resolveColumnWidth(column.label, column.width),
+  );
+  const tableContentWidth = columnWidths.reduce(
+    (sum, width) => sum + width,
+    ACTION_COLUMN_WIDTH,
+  );
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   const openCreate = () => {
     setEditingItem(null);
     setValues(getInitialValues());
-    setActiveSelect(null);
     setFormOpen(true);
   };
 
@@ -92,7 +130,6 @@ export default function AdminCrudPanel<T>({
 
   const closeForm = () => {
     setEditingItem(null);
-    setActiveSelect(null);
     setFormOpen(false);
   };
 
@@ -137,7 +174,7 @@ export default function AdminCrudPanel<T>({
               style={[styles.actionButton, styles.primaryButton]}
             >
               <Ionicons color={colors.surface} name="add" size={18} />
-              <Text style={styles.primaryButtonText}>Them moi</Text>
+              <Text style={styles.primaryButtonText}>Thêm mới</Text>
             </Pressable>
           ) : null}
         </View>
@@ -154,10 +191,10 @@ export default function AdminCrudPanel<T>({
             <View style={styles.formHeader}>
               <View>
                 <Text style={styles.formTitle}>
-                  {editingItem ? "Cap nhat ban ghi" : "Tao ban ghi moi"}
+                  {editingItem ? "Cập nhật bản ghi" : "Tạo bản ghi mới"}
                 </Text>
                 <Text style={styles.formSubtitle}>
-                  Nhap dung payload request backend dang yeu cau.
+                  Nhập đúng payload request backend đang yêu cầu.
                 </Text>
               </View>
               <Pressable onPress={closeForm} style={styles.iconButton}>
@@ -189,7 +226,7 @@ export default function AdminCrudPanel<T>({
                           value={Boolean(values[field.name])}
                         />
                         <Text style={styles.switchText}>
-                          {Boolean(values[field.name]) ? "Bat" : "Tat"}
+                          {Boolean(values[field.name]) ? "Bật" : "Tắt"}
                         </Text>
                       </View>
                     ) : null}
@@ -203,7 +240,7 @@ export default function AdminCrudPanel<T>({
                             {field.options?.find(
                               (option) =>
                                 String(values[field.name]) === option.value,
-                            )?.label ?? "Chon..."}
+                            )?.label ?? "Chọn..."}
                           </Text>
                         </View>
                         <View style={styles.selectDropdownAlwaysVisible}>
@@ -251,7 +288,7 @@ export default function AdminCrudPanel<T>({
                 onPress={closeForm}
                 style={styles.secondaryButton}
               >
-                <Text style={styles.secondaryButtonText}>Huy</Text>
+                <Text style={styles.secondaryButtonText}>Hủy</Text>
               </Pressable>
               <Pressable
                 disabled={working}
@@ -264,7 +301,7 @@ export default function AdminCrudPanel<T>({
                   size={18}
                 />
                 <Text style={styles.primaryButtonText}>
-                  {working ? "Dang luu..." : "Luu"}
+                  {working ? "Đang lưu..." : "Lưu"}
                 </Text>
               </Pressable>
             </View>
@@ -272,20 +309,45 @@ export default function AdminCrudPanel<T>({
         </View>
       </Modal>
 
-      <ScrollView horizontal style={styles.tableScroller}>
-        <View style={styles.table}>
+      <ScrollView
+        contentContainerStyle={styles.tableScrollerContent}
+        horizontal
+        style={styles.tableScroller}
+      >
+        <View style={[styles.table, { minWidth: tableContentWidth }]}>
           <View style={styles.tableHeader}>
-            {columns.map((column) => (
-              <Text key={column.label} style={styles.headerCell}>
+            {columns.map((column, index) => (
+              <Text
+                key={column.label}
+                style={[
+                  styles.headerCell,
+                  {
+                    flexBasis: columnWidths[index],
+                    flexGrow: 1,
+                    minWidth: columnWidths[index],
+                  },
+                ]}
+              >
                 {column.label}
               </Text>
             ))}
-            <Text style={[styles.headerCell, styles.actionCell]}>Actions</Text>
+            <Text style={[styles.headerCell, styles.actionCell]}>Thao tác</Text>
           </View>
-          {records.map((item) => (
+          {paginatedRecords.map((item) => (
             <View key={getItemId(item)} style={styles.tableRow}>
-              {columns.map((column) => (
-                <Text key={column.label} numberOfLines={2} style={styles.cell}>
+              {columns.map((column, index) => (
+                <Text
+                  key={column.label}
+                  numberOfLines={2}
+                  style={[
+                    styles.cell,
+                    {
+                      flexBasis: columnWidths[index],
+                      flexGrow: 1,
+                      minWidth: columnWidths[index],
+                    },
+                  ]}
+                >
                   {column.render(item)}
                 </Text>
               ))}
@@ -318,11 +380,48 @@ export default function AdminCrudPanel<T>({
           ) : null}
           {loading ? (
             <View style={styles.tableRow}>
-              <Text style={styles.emptyText}>Dang tai du lieu...</Text>
+              <Text style={styles.emptyText}>Đang tải dữ liệu...</Text>
             </View>
           ) : null}
         </View>
       </ScrollView>
+
+      {records.length > 0 ? (
+        <View style={styles.paginationBar}>
+          <Text style={styles.paginationSummary}>
+            {`${startIndex + 1}-${Math.min(startIndex + pageSize, records.length)} / ${records.length}`}
+          </Text>
+          <View style={styles.paginationControls}>
+            <Pressable
+              disabled={currentPage === 1}
+              onPress={() => setPage((prev) => Math.max(1, prev - 1))}
+              style={[
+                styles.paginationButton,
+                currentPage === 1 ? styles.paginationButtonDisabled : null,
+              ]}
+            >
+              <Ionicons color={colors.text} name="chevron-back" size={16} />
+            </Pressable>
+
+            <View style={styles.paginationPagePill}>
+              <Text style={styles.paginationPageText}>
+                {`Trang ${currentPage}/${totalPages}`}
+              </Text>
+            </View>
+
+            <Pressable
+              disabled={currentPage === totalPages}
+              onPress={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+              style={[
+                styles.paginationButton,
+                currentPage === totalPages ? styles.paginationButtonDisabled : null,
+              ]}
+            >
+              <Ionicons color={colors.text} name="chevron-forward" size={16} />
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -337,15 +436,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   actionCell: {
-    maxWidth: 104,
-    minWidth: 104,
+    width: ACTION_COLUMN_WIDTH,
   },
   cell: {
     color: colors.text,
     fontSize: 13,
     fontWeight: "600",
     lineHeight: 19,
-    minWidth: 148,
     paddingRight: spacing.md,
   },
   emptyText: {
@@ -387,9 +484,9 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   formWrap: {
-    backgroundColor: "#0E1728",
-    borderColor: "#2A3A55",
-    borderRadius: 14,
+    backgroundColor: "rgba(15,27,49,0.92)",
+    borderColor: "#2D496B",
+    borderRadius: 20,
     borderWidth: 1,
     marginBottom: spacing.md,
     padding: 18,
@@ -406,9 +503,9 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
   },
   modalCard: {
-    backgroundColor: "#0E1728",
-    borderColor: "#3A4A63",
-    borderRadius: 18,
+    backgroundColor: "#0E1B31",
+    borderColor: "#34557D",
+    borderRadius: 24,
     borderWidth: 1,
     maxHeight: "88%",
     maxWidth: 1120,
@@ -438,24 +535,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "800",
     letterSpacing: 0,
-    minWidth: 148,
     paddingRight: spacing.md,
     textTransform: "uppercase",
   },
   iconButton: {
     alignItems: "center",
-    backgroundColor: "#152238",
-    borderColor: "#30425F",
-    borderRadius: 10,
+    backgroundColor: "#152742",
+    borderColor: "#41658F",
+    borderRadius: 14,
     borderWidth: 1,
     height: 40,
     justifyContent: "center",
     width: 40,
   },
   input: {
-    backgroundColor: "#0A1220",
-    borderColor: "#344765",
-    borderRadius: 10,
+    backgroundColor: "#091321",
+    borderColor: "#3D5B80",
+    borderRadius: 14,
     borderWidth: 1,
     color: colors.text,
     fontSize: 14,
@@ -472,9 +568,54 @@ const styles = StyleSheet.create({
   panel: {
     flex: 1,
   },
+  paginationBar: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.sm,
+  },
+  paginationButton: {
+    alignItems: "center",
+    backgroundColor: "#152742",
+    borderColor: "#41658F",
+    borderRadius: 12,
+    borderWidth: 1,
+    height: 36,
+    justifyContent: "center",
+    width: 36,
+  },
+  paginationButtonDisabled: {
+    opacity: 0.45,
+  },
+  paginationControls: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  paginationPagePill: {
+    backgroundColor: "#132037",
+    borderColor: "#2A3B57",
+    borderRadius: 999,
+    borderWidth: 1,
+    minWidth: 110,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  paginationPageText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  paginationSummary: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
+  },
   primaryButton: {
-    backgroundColor: "#2F6EA8",
-    shadowColor: "#2F6EA8",
+    backgroundColor: "#2E7CD4",
+    shadowColor: "#2E7CD4",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.34,
     shadowRadius: 22,
@@ -488,14 +629,16 @@ const styles = StyleSheet.create({
     color: colors.danger,
   },
   rowActions: {
+    alignItems: "center",
     flexDirection: "row",
     gap: spacing.md,
+    justifyContent: "flex-start",
   },
   secondaryButton: {
     alignItems: "center",
-    backgroundColor: "#152238",
+    backgroundColor: "#152742",
     borderColor: colors.border,
-    borderRadius: 10,
+    borderRadius: 14,
     borderWidth: 1,
     justifyContent: "center",
     minHeight: 40,
@@ -513,9 +656,9 @@ const styles = StyleSheet.create({
   },
   selectField: {
     alignItems: "center",
-    backgroundColor: "#0A1220",
-    borderColor: "#344765",
-    borderRadius: 10,
+    backgroundColor: "#091321",
+    borderColor: "#3D5B80",
+    borderRadius: 14,
     borderWidth: 1,
     flexDirection: "row",
     justifyContent: "space-between",
@@ -533,9 +676,9 @@ const styles = StyleSheet.create({
     top: 48,
     left: 0,
     right: 0,
-    backgroundColor: "#0A1228",
-    borderColor: "#344765",
-    borderRadius: 10,
+    backgroundColor: "#0B1728",
+    borderColor: "#3D5B80",
+    borderRadius: 14,
     borderWidth: 1,
     maxHeight: 220,
     overflow: "hidden",
@@ -601,10 +744,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   table: {
-    minWidth: "100%",
+    alignSelf: "stretch",
+    flex: 1,
+    width: "100%",
   },
   tableHeader: {
-    backgroundColor: "#152238",
+    backgroundColor: "#162946",
     borderBottomColor: colors.border,
     borderBottomWidth: 1,
     flexDirection: "row",
@@ -621,15 +766,18 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   tableScroller: {
-    backgroundColor: "#0E1728",
-    borderColor: "#2A3A55",
-    borderRadius: 14,
+    backgroundColor: "rgba(15,27,49,0.92)",
+    borderColor: "#2D496B",
+    borderRadius: 20,
     borderWidth: 1,
     overflow: "hidden",
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 1,
     shadowRadius: 22,
+  },
+  tableScrollerContent: {
+    flexGrow: 1,
   },
   textarea: {
     minHeight: 74,

@@ -1,429 +1,852 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, radius, spacing } from "@/src/assets/styles/theme";
+import { colors, radius, spacing } from "@/src/assets/styles/user-theme";
 import AppHeader, { AvatarBadge } from "@/src/components/user/AppHeader";
 import ProgressBar from "@/src/components/user/ProgressBar";
 import SectionTitle from "@/src/components/user/SectionTitle";
 import SurfaceCard from "@/src/components/user/SurfaceCard";
 import UserScreen from "@/src/components/user/UserScreen";
+import { useAuth } from "@/src/hooks/use-auth";
+import { UserTestService } from "@/src/services/user-test.service";
 import {
-  achievementCards,
-  focusAreas,
-  userProfile,
-} from "@/src/pages/user/mock-data";
+  assignRecommendedPath,
+  getLearningPaths,
+  getMyStreak,
+  getUserRoadmap,
+} from "@/src/services/user.service";
+import { LearningPath, UserRoadmap, UserTestLeaderboardItem } from "@/src/types/user-api";
+import { isNoActiveLearningPathError } from "@/src/utils/api-errors";
 import { pushRoute } from "@/src/utils/navigation";
 
-function CircleScore() {
-  return (
-    <View style={styles.circleWrap}>
-      <View style={styles.circleOuter}>
-        <View style={styles.circleInner}>
-          <Text style={styles.circleValue}>500</Text>
-          <Text style={styles.circleLabel}>/ 800 PTS</Text>
-        </View>
-      </View>
-    </View>
-  );
+function formatName(fullName?: string | null) {
+  if (!fullName?.trim()) return "bạn";
+  const parts = fullName.trim().split(/\s+/);
+  return parts[parts.length - 1];
+}
+
+function getRecommendationLabel(path: LearningPath, targetScore: number) {
+  const gap = Math.abs(path.targetScore - targetScore);
+
+  if (gap === 0) return "Khớp đúng mục tiêu";
+  if (gap <= 100) return "Rất gần mục tiêu";
+  if (path.targetScore < targetScore) return "Cần tăng tốc";
+  return "Vượt chuẩn hiện tại";
+}
+
+function getPathTone(path: LearningPath) {
+  if (path.targetScore >= 800) {
+    return {
+      accent: "#B85C38",
+      glow: "#F5D4B8",
+      panel: "#FFF3E8",
+      soft: "#F3D8C4",
+    };
+  }
+
+  if (path.targetScore >= 500) {
+    return {
+      accent: "#0F6B62",
+      glow: "#D9F1E8",
+      panel: "#EEF9F6",
+      soft: "#D8EEE7",
+    };
+  }
+
+  return {
+    accent: "#295DA8",
+    glow: "#DDE8FA",
+    panel: "#F2F6FF",
+    soft: "#E1EAFB",
+  };
 }
 
 export default function HomeScreen() {
+  const { auth } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [assigningPath, setAssigningPath] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [learningPaths, setLearningPaths] = useState<LearningPath[]>([]);
+  const [roadmap, setRoadmap] = useState<UserRoadmap | null>(null);
+  const [leaderboard, setLeaderboard] = useState<UserTestLeaderboardItem[]>([]);
+  const [selectedPathId, setSelectedPathId] = useState<number | null>(null);
+  const [streakDays, setStreakDays] = useState(0);
+
+  const fullName = auth.user?.fullName ?? "";
+  const targetScore = auth.user?.targetScore ?? 0;
+  const greetingName = formatName(fullName);
+  const leaderboardService = useMemo(
+    () => (auth.accessToken ? new UserTestService(auth.accessToken) : null),
+    [auth.accessToken],
+  );
+
+  useEffect(() => {
+    if (!auth.accessToken) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setErrorMessage(null);
+
+    Promise.allSettled([
+      getLearningPaths(auth.accessToken),
+      getUserRoadmap(auth.accessToken),
+      leaderboardService?.getLeaderboard(),
+      getMyStreak(auth.accessToken),
+    ])
+      .then(([pathsResult, roadmapResult, leaderboardResult, streakResult]) => {
+        if (pathsResult.status !== "fulfilled") {
+          throw pathsResult.reason;
+        }
+
+        const nextPaths = pathsResult.value.data ?? [];
+        const nextRoadmap =
+          roadmapResult.status === "fulfilled"
+            ? roadmapResult.value.data ?? null
+            : isNoActiveLearningPathError(roadmapResult.reason)
+              ? null
+              : (() => {
+                  throw roadmapResult.reason;
+                })();
+        const nextLeaderboard = [
+          ...(leaderboardResult.status === "fulfilled" ? leaderboardResult.value?.data ?? [] : []),
+        ]
+          .sort((a, b) => b.totalScore - a.totalScore)
+          .slice(0, 4);
+        const nextStreak =
+          streakResult.status === "fulfilled" ? streakResult.value.data?.currentLoginStreak ?? 0 : 0;
+
+        setLearningPaths(nextPaths);
+        setRoadmap(nextRoadmap);
+        setLeaderboard(nextLeaderboard);
+        setStreakDays(nextStreak);
+
+        if (nextRoadmap?.learningPathId) {
+          setSelectedPathId(nextRoadmap.learningPathId);
+          return;
+        }
+
+        const nearestPath = [...nextPaths]
+          .filter((path) => path.active)
+          .sort(
+            (a, b) => Math.abs(a.targetScore - targetScore) - Math.abs(b.targetScore - targetScore),
+          )[0];
+
+        setSelectedPathId(nearestPath?.id ?? null);
+      })
+      .catch((error) => {
+        setErrorMessage(
+          error instanceof Error ? error.message : "Không thể tải dữ liệu trang chủ.",
+        );
+      })
+      .finally(() => setLoading(false));
+  }, [auth.accessToken, leaderboardService, targetScore]);
+
+  const selectedPath = useMemo(
+    () => learningPaths.find((item) => item.id === selectedPathId) ?? null,
+    [learningPaths, selectedPathId],
+  );
+
+  const recommendedPathId = useMemo(() => {
+    return [...learningPaths]
+      .filter((path) => path.active)
+      .sort(
+        (a, b) => Math.abs(a.targetScore - targetScore) - Math.abs(b.targetScore - targetScore),
+      )[0]?.id;
+  }, [learningPaths, targetScore]);
+
+  const roadmapModules = roadmap?.milestones.flatMap((milestone) => milestone.modules) ?? [];
+  const hasNoAssignedPath = !roadmap;
+  const latestModule =
+    roadmapModules.find((module) => module.moduleId === roadmap?.currentModuleId) ??
+    roadmapModules.find((module) => module.progressStatus === "IN_PROGRESS") ??
+    roadmapModules[0] ??
+    null;
+  const latestMilestone =
+    roadmap?.milestones.find((milestone) =>
+      milestone.modules.some((module) => module.moduleId === latestModule?.moduleId),
+    ) ?? null;
+  const vocabularyLearned = roadmapModules.reduce((sum, module) => sum + module.flashcardCount, 0);
+  const completedModules = roadmapModules.filter((module) => module.progressStatus === "COMPLETED").length;
+  const selectedTone = getPathTone(selectedPath ?? ({ targetScore } as LearningPath));
+
+  const handleChoosePath = async () => {
+    if (!auth.accessToken || !selectedPath) return;
+
+    try {
+      setAssigningPath(true);
+      const response = await assignRecommendedPath(auth.accessToken, {
+        learningPathId: selectedPath.id,
+        targetScore: selectedPath.targetScore,
+      });
+      setSelectedPathId(response.data.learningPathId);
+      const roadmapResponse = await getUserRoadmap(auth.accessToken);
+      setRoadmap(roadmapResponse.data ?? null);
+      Alert.alert("Lộ trình", `Đã chọn ${selectedPath.title}.`);
+      pushRoute("/user/practice");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Không thể chọn lộ trình.";
+      Alert.alert("Lỗi", message);
+    } finally {
+      setAssigningPath(false);
+    }
+  };
+
   return (
     <UserScreen>
       <AppHeader
-        rightSlot={<AvatarBadge label="A" />}
-        title="Academic Concierge"
+        rightSlot={<AvatarBadge label={greetingName.charAt(0).toUpperCase()} />}
+        subtitle="Bản đồ luyện thi hôm nay"
+        title="TOEIC Trainer"
       />
 
-      <Text style={styles.heroTitle}>{userProfile.fullName}&apos;s Dashboard</Text>
-      <Text style={styles.heroSubtitle}>
-        Your path to TOEIC 990 is {userProfile.completionRate}% complete.
-      </Text>
+      <SurfaceCard style={styles.heroCard}>
+        <View style={styles.heroBackdrop} />
+        <View style={styles.heroGlowLeft} />
+        <View style={styles.heroGlowRight} />
 
-      <Pressable
-        onPress={() => pushRoute("/user/onboarding")}
-        style={styles.primaryButton}
-      >
-        <Text style={styles.primaryButtonText}>START DAILY DRILL</Text>
-      </Pressable>
+        <View style={styles.heroTopRow}>
+          <View style={styles.heroCopy}>
+            <Text style={styles.heroEyebrow}>Xin chào, {greetingName}</Text>
+            <Text style={styles.heroTitle}>Giữ nhịp học đều để kéo điểm TOEIC lên nhanh hơn.</Text>
+            <Text numberOfLines={2} style={styles.heroSubtitle}>
+              Tập trung vào đúng lộ trình, làm gọn từng module và giữ đà học mỗi ngày.
+            </Text>
+          </View>
 
-      <SurfaceCard style={styles.masteryCard}>
-        <Text style={styles.cardTitle}>Overall Mastery</Text>
-        <CircleScore />
-        <Text style={styles.masteryFoot}>
-          You&apos;ve gained <Text style={styles.emphasis}>+45 points</Text> this week.
-        </Text>
-        <Text style={styles.masterySub}>Keep the momentum!</Text>
-      </SurfaceCard>
-
-      <SurfaceCard style={styles.chartCard}>
-        <View style={styles.chartHeader}>
-          <Text style={styles.chartTitle}>Listening vs Reading</Text>
-          <View style={styles.legendRow}>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: colors.primaryDark }]} />
-              <Text style={styles.legendText}>Listening</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: "#47D764" }]} />
-              <Text style={styles.legendText}>Reading</Text>
-            </View>
+          <View style={styles.heroTargetBadge}>
+            <Text style={styles.heroTargetValue}>{targetScore}+</Text>
+            <Text style={styles.heroTargetLabel}>Mục tiêu</Text>
           </View>
         </View>
-        <View style={styles.barChart}>
-          {[
-            { label: "W1", listen: 44, read: 38 },
-            { label: "W2", listen: 57, read: 52 },
-            { label: "W3", listen: 68, read: 66 },
-            { label: "CURRENT", listen: 78, read: 82 },
-          ].map((item) => (
-            <View key={item.label} style={styles.barColumn}>
-              <View style={styles.barTrack}>
-                <View
-                  style={[styles.barListening, { height: `${item.listen}%` }]}
-                />
-                <View
-                  style={[styles.barReading, { height: `${item.read}%` }]}
-                />
-              </View>
-              <Text style={styles.barLabel}>{item.label}</Text>
-            </View>
-          ))}
+
+        <View style={styles.heroMetaRow}>
+          <View style={styles.metaChip}>
+            <Ionicons color="#8EE0D3" name="flame-outline" size={14} />
+            <Text style={styles.metaChipText}>{streakDays} ngày streak</Text>
+          </View>
+          <View style={styles.metaChip}>
+            <Ionicons color="#FFD18D" name="checkmark-done-outline" size={14} />
+            <Text style={styles.metaChipText}>{completedModules} module xong</Text>
+          </View>
+          <View style={styles.metaChip}>
+            <Ionicons color="#B7D7FF" name="albums-outline" size={14} />
+            <Text style={styles.metaChipText}>{vocabularyLearned} từ vựng</Text>
+          </View>
         </View>
+
+        <View style={styles.progressBlock}>
+          <ProgressBar
+            accentColor="#F1A546"
+            label="Tiến độ lộ trình"
+            labelColor="#FFF9F0"
+            rightLabelColor="#FFF9F0"
+            rightLabel={`${Math.round(roadmap?.progressPercent ?? 0)}%`}
+            value={roadmap?.progressPercent ?? 0}
+          />
+        </View>
+
+        {hasNoAssignedPath ? (
+          <View style={styles.noticeCard}>
+            <Ionicons color="#A45C15" name="sparkles-outline" size={16} />
+            <Text style={styles.noticeText}>
+              Chọn một lộ trình bên dưới để hệ thống mở roadmap phù hợp cho bạn.
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.liveRoadmapCard}>
+            <View style={styles.liveRoadmapMain}>
+              <Text style={styles.liveRoadmapCode}>{roadmap?.learningPathCode ?? "ROADMAP"}</Text>
+              <Text numberOfLines={1} style={styles.liveRoadmapTitle}>
+                {roadmap?.learningPathTitle ?? "Lộ trình hiện tại"}
+              </Text>
+              <Text numberOfLines={1} style={styles.liveRoadmapText}>
+                {latestModule
+                  ? `${latestModule.title} • ${latestMilestone?.title ?? "Milestone hiện tại"}`
+                  : "Mở practice để tiếp tục lộ trình hôm nay."}
+              </Text>
+            </View>
+
+            <View style={styles.liveRoadmapSide}>
+              <Text style={styles.liveRoadmapPercent}>{Math.round(roadmap?.progressPercent ?? 0)}%</Text>
+              <Text style={styles.liveRoadmapSideLabel}>Hoàn thành</Text>
+            </View>
+          </View>
+        )}
       </SurfaceCard>
 
       <SectionTitle
-        actionLabel="View All"
-        onActionPress={() => pushRoute("/user/roadmap")}
-        title="Milestones & Achievements"
+        actionLabel={hasNoAssignedPath ? "Onboarding" : "Mở practice"}
+        onActionPress={() => pushRoute(hasNoAssignedPath ? "/user/onboarding" : "/user/practice")}
+        title="Chọn lộ trình học"
       />
-      <View style={styles.achievementGrid}>
-        {achievementCards.map((item) => (
-          <SurfaceCard key={item.title} style={styles.achievementCard}>
-            <View style={[styles.achievementIcon, { backgroundColor: item.tint }]}>
-              <Ionicons
-                color={item.locked ? "#9A9FB0" : colors.primaryDark}
-                name={item.icon as keyof typeof Ionicons.glyphMap}
-                size={22}
-              />
+
+      {loading ? (
+        <View style={styles.feedbackRow}>
+          <ActivityIndicator color={colors.primaryDark} />
+          <Text style={styles.feedbackText}>Đang tải dữ liệu từ backend...</Text>
+        </View>
+      ) : null}
+
+      {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+
+      {!loading ? (
+        <View style={styles.pathList}>
+          {learningPaths.map((path) => {
+            const isSelected = selectedPathId === path.id;
+            const isRecommended = recommendedPathId === path.id;
+            const isCurrent = roadmap?.learningPathId === path.id;
+            const tone = getPathTone(path);
+
+            return (
+              <Pressable
+                key={path.id}
+                onPress={() => path.active && setSelectedPathId(path.id)}
+                style={[
+                  styles.pathCard,
+                  { backgroundColor: tone.panel, borderColor: tone.soft },
+                  isSelected ? [styles.pathCardSelected, { borderColor: tone.accent }] : null,
+                  !path.active ? styles.pathCardDisabled : null,
+                ]}
+              >
+                <View style={[styles.pathOrb, { backgroundColor: tone.glow }]} />
+
+                <View style={styles.pathHeaderRow}>
+                  <View style={styles.pathTitleWrap}>
+                    <Text style={styles.pathCode}>{path.code}</Text>
+                    <Text numberOfLines={1} style={styles.pathTitle}>
+                      {path.title}
+                    </Text>
+                  </View>
+
+                  <View style={[styles.pathScoreBubble, { backgroundColor: tone.accent }]}>
+                    <Text style={styles.pathScoreBubbleValue}>{path.targetScore}+</Text>
+                  </View>
+                </View>
+
+                <View style={styles.pathTagRow}>
+                  {isRecommended ? <Text style={[styles.pathTag, styles.pathTagAccent]}>Đề xuất</Text> : null}
+                  {isCurrent ? <Text style={[styles.pathTag, styles.pathTagDark]}>Đang học</Text> : null}
+                  {!path.active ? <Text style={[styles.pathTag, styles.pathTagMuted]}>Tạm khóa</Text> : null}
+                </View>
+
+                <Text numberOfLines={1} style={styles.pathDescription}>
+                  {path.description}
+                </Text>
+
+                <View style={styles.pathFooter}>
+                  <Text numberOfLines={1} style={styles.pathHint}>
+                    {getRecommendationLabel(path, targetScore)}
+                  </Text>
+                  <Ionicons
+                    color={tone.accent}
+                    name={isSelected ? "checkmark-circle" : "arrow-forward-circle-outline"}
+                    size={20}
+                  />
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+
+      <Pressable
+        disabled={!selectedPath || assigningPath}
+        onPress={handleChoosePath}
+        style={[
+          styles.primaryButton,
+          { backgroundColor: selectedTone.accent },
+          !selectedPath || assigningPath ? styles.primaryButtonDisabled : null,
+        ]}
+      >
+        <Text style={styles.primaryButtonText}>
+          {assigningPath
+            ? "Đang cập nhật lộ trình..."
+            : selectedPath
+              ? `Bắt đầu với ${selectedPath.title}`
+              : "Chọn một lộ trình"}
+        </Text>
+      </Pressable>
+
+      <View style={styles.featureGrid}>
+        <SurfaceCard style={styles.quickCard}>
+          <View style={styles.quickCardHeader}>
+            <View style={[styles.quickIconWrap, { backgroundColor: "#E7F4EF" }]}>
+              <Ionicons color={colors.primary} name="library-outline" size={18} />
             </View>
-            <Text style={[styles.achievementTitle, item.locked ? styles.lockedText : null]}>
-              {item.title}
-            </Text>
-            <Text style={styles.achievementSubtitle}>{item.subtitle}</Text>
-          </SurfaceCard>
-        ))}
-      </View>
-
-      <SectionTitle title="Recent Focus Areas" />
-      {focusAreas.map((area) => (
-        <Pressable
-          key={area.title}
-          onPress={() => pushRoute("/user/grammar")}
-          style={styles.focusItem}
-        >
-          <View style={[styles.focusIcon, { backgroundColor: area.color }]}>
-            <Ionicons color={colors.primaryDark} name="trending-up-outline" size={18} />
+            <Text style={styles.quickCardTitle}>Ngữ pháp trọng tâm</Text>
           </View>
-          <View style={styles.focusBody}>
-            <Text style={styles.focusTitle}>{area.title}</Text>
-            <Text style={styles.focusMeta}>
-              Accuracy: {area.accuracy} ({area.tone})
-            </Text>
-          </View>
-          <Ionicons color={colors.textMuted} name="chevron-forward" size={20} />
-        </Pressable>
-      ))}
 
-      <SurfaceCard style={styles.summaryCard}>
-        <Text style={styles.summaryBadge}>Concierge Summary</Text>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Study Hours</Text>
-          <Text style={styles.summaryValue}>{userProfile.studyHours}</Text>
-        </View>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Mock Tests Taken</Text>
-          <Text style={styles.summaryValue}>12</Text>
-        </View>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Vocabulary Strength</Text>
-          <Text style={styles.summaryValue}>A+</Text>
-        </View>
-        <ProgressBar
-          accentColor="#47D764"
-          label="Weekly momentum"
-          rightLabel="84%"
-          value={84}
-        />
-        <Pressable
-          onPress={() => Alert.alert("Roadmap", "Ban co the noi API goi dashboard summary tai day.")}
-          style={styles.summaryAction}
-        >
-          <Text style={styles.summaryActionText}>
-            Your analytical skills are peaking. Focus on Listening Part 2 tomorrow.
+          <Text numberOfLines={2} style={styles.quickCardText}>
+            Mở nhanh thư viện ngữ pháp để ôn lại điểm quan trọng trước khi làm practice.
           </Text>
-        </Pressable>
-      </SurfaceCard>
+
+          <Pressable onPress={() => pushRoute("/user/grammar")} style={styles.secondaryButton}>
+            <Text style={styles.secondaryButtonText}>Mở thư viện ngữ pháp</Text>
+          </Pressable>
+        </SurfaceCard>
+
+        <SurfaceCard style={styles.leaderboardCard}>
+          <View style={styles.quickCardHeader}>
+            <View style={[styles.quickIconWrap, { backgroundColor: "#FCEBD7" }]}>
+              <Ionicons color={colors.accent} name="trophy-outline" size={18} />
+            </View>
+            <Text style={styles.quickCardTitle}>Top người học tuần này</Text>
+          </View>
+
+          {leaderboard.length > 0 ? (
+            <View style={styles.rankList}>
+              {leaderboard.map((entry) => (
+                <View key={entry.userId} style={styles.rankRow}>
+                  <Text style={styles.rankIndex}>#{entry.position}</Text>
+                  <View style={styles.rankAvatar}>
+                    <Text style={styles.rankAvatarText}>{entry.fullName.charAt(0).toUpperCase()}</Text>
+                  </View>
+                  <View style={styles.rankInfo}>
+                    <Text numberOfLines={1} style={styles.rankName}>
+                      {entry.fullName}
+                    </Text>
+                    <Text numberOfLines={1} style={styles.rankMeta}>
+                      {entry.totalAttempts} lượt • {entry.totalScore.toFixed(1)} điểm
+                    </Text>
+                  </View>
+                  <Text style={styles.rankBadge}>{Math.round(entry.totalScore)}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.quickCardText}>Chưa có dữ liệu bảng xếp hạng từ backend.</Text>
+          )}
+        </SurfaceCard>
+      </View>
     </UserScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  achievementCard: {
-    flexBasis: "48%",
-    minHeight: 164,
+  errorText: {
+    backgroundColor: "rgba(201,87,87,0.12)",
+    borderColor: "rgba(201,87,87,0.22)",
+    borderRadius: radius.md,
+    borderWidth: 1,
+    color: colors.danger,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  featureGrid: {
+    gap: spacing.md,
+    marginBottom: spacing.xl,
+  },
+  feedbackRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  feedbackText: {
+    color: colors.textMuted,
+    fontSize: 14,
+  },
+  heroBackdrop: {
+    backgroundColor: "#143848",
+    borderRadius: radius.xl,
+    bottom: 0,
+    left: 0,
+    opacity: 0.98,
+    position: "absolute",
+    right: 0,
+    top: 0,
+  },
+  heroCard: {
+    backgroundColor: "#143848",
+    borderColor: "#204F62",
+    marginBottom: spacing.lg,
+    overflow: "hidden",
     padding: spacing.md,
   },
-  achievementGrid: {
+  heroCopy: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: spacing.sm,
+  },
+  heroEyebrow: {
+    color: "#8EE0D3",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1,
+    marginBottom: 4,
+    textTransform: "uppercase",
+  },
+  heroGlowLeft: {
+    backgroundColor: "rgba(224,138,46,0.14)",
+    borderRadius: 170,
+    height: 170,
+    left: -74,
+    position: "absolute",
+    top: 54,
+    width: 170,
+  },
+  heroGlowRight: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 140,
+    height: 140,
+    position: "absolute",
+    right: -30,
+    top: -12,
+    width: 140,
+  },
+  heroMetaRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing.md,
-    marginBottom: spacing.xl,
-  },
-  achievementIcon: {
-    alignItems: "center",
-    borderRadius: radius.pill,
-    height: 52,
-    justifyContent: "center",
-    marginBottom: spacing.md,
-    width: 52,
-  },
-  achievementSubtitle: {
-    color: colors.textMuted,
-    fontSize: 11,
-    lineHeight: 16,
-    marginTop: spacing.xs,
-    textTransform: "uppercase",
-  },
-  achievementTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: "800",
-  },
-  barChart: {
-    alignItems: "flex-end",
-    flexDirection: "row",
-    gap: spacing.md,
-    height: 180,
-    justifyContent: "space-between",
-    marginTop: spacing.lg,
-  },
-  barColumn: {
-    alignItems: "center",
-    flex: 1,
-    gap: spacing.sm,
-  },
-  barLabel: {
-    color: colors.textMuted,
-    fontSize: 10,
-    fontWeight: "800",
-  },
-  barListening: {
-    backgroundColor: colors.primaryDark,
-    borderRadius: radius.pill,
-    width: 12,
-  },
-  barReading: {
-    backgroundColor: "#47D764",
-    borderRadius: radius.pill,
-    width: 12,
-  },
-  barTrack: {
-    alignItems: "flex-end",
-    flexDirection: "row",
-    gap: 8,
-    height: 140,
-  },
-  cardTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: "800",
-  },
-  chartCard: {
-    marginBottom: spacing.xl,
-  },
-  chartHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  chartTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: "800",
-    width: 80,
-  },
-  circleInner: {
-    alignItems: "center",
-    backgroundColor: colors.surface,
-    borderRadius: radius.pill,
-    height: 114,
-    justifyContent: "center",
-    width: 114,
-  },
-  circleLabel: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  circleOuter: {
-    alignItems: "center",
-    backgroundColor: "#DDE4F8",
-    borderColor: "#24963F",
-    borderRadius: radius.pill,
-    borderTopColor: "#47D764",
-    borderWidth: 8,
-    height: 142,
-    justifyContent: "center",
-    width: 142,
-  },
-  circleValue: {
-    color: colors.primaryDark,
-    fontSize: 20,
-    fontWeight: "900",
-  },
-  circleWrap: {
-    alignItems: "center",
-    marginVertical: spacing.lg,
-  },
-  emphasis: {
-    color: "#24963F",
-    fontWeight: "900",
-  },
-  focusBody: {
-    flex: 1,
-  },
-  focusIcon: {
-    alignItems: "center",
-    borderRadius: radius.pill,
-    height: 42,
-    justifyContent: "center",
-    width: 42,
-  },
-  focusItem: {
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.92)",
-    borderRadius: radius.lg,
-    flexDirection: "row",
-    gap: spacing.md,
-    marginBottom: spacing.md,
-    padding: spacing.md,
-  },
-  focusMeta: {
-    color: colors.textMuted,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  focusTitle: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: "800",
-  },
-  heroSubtitle: {
-    color: colors.text,
-    fontSize: 20,
-    lineHeight: 28,
-    marginBottom: spacing.lg,
-    maxWidth: 260,
-  },
-  heroTitle: {
-    color: colors.primaryDark,
-    fontSize: 34,
-    fontWeight: "900",
-    lineHeight: 36,
+    gap: spacing.xs,
     marginBottom: spacing.sm,
   },
-  legendDot: {
-    borderRadius: radius.pill,
-    height: 8,
-    width: 8,
+  heroSubtitle: {
+    color: "rgba(244,248,243,0.78)",
+    fontSize: 12,
+    lineHeight: 18,
   },
-  legendItem: {
+  heroTargetBadge: {
     alignItems: "center",
-    flexDirection: "row",
-    gap: 4,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderColor: "rgba(255,255,255,0.08)",
+    borderRadius: 20,
+    borderWidth: 1,
+    justifyContent: "center",
+    minWidth: 74,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
-  legendRow: {
-    gap: spacing.sm,
-  },
-  legendText: {
-    color: colors.text,
+  heroTargetLabel: {
+    color: "rgba(244,248,243,0.74)",
     fontSize: 10,
-    fontWeight: "800",
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  heroTargetValue: {
+    color: "#FFF9F0",
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  heroTitle: {
+    color: "#FFF9F0",
+    fontSize: 24,
+    fontWeight: "900",
+    lineHeight: 29,
+    marginBottom: 6,
+  },
+  heroTopRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  leaderboardCard: {
+    backgroundColor: "#FFF8EE",
+  },
+  liveRoadmapCard: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderColor: "rgba(255,255,255,0.12)",
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 10,
+  },
+  liveRoadmapCode: {
+    color: "#8EE0D3",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1,
     textTransform: "uppercase",
   },
-  lockedText: {
-    color: "#9A9FB0",
+  liveRoadmapMain: {
+    flex: 1,
+    minWidth: 0,
   },
-  masteryCard: {
-    marginBottom: spacing.lg,
+  liveRoadmapPercent: {
+    color: "#FFF9F0",
+    fontSize: 18,
+    fontWeight: "900",
   },
-  masteryFoot: {
-    color: colors.text,
-    fontSize: 13,
-    textAlign: "center",
+  liveRoadmapSide: {
+    alignItems: "flex-end",
+    minWidth: 58,
   },
-  masterySub: {
-    color: colors.textMuted,
+  liveRoadmapSideLabel: {
+    color: "rgba(244,248,243,0.68)",
+    fontSize: 10,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  liveRoadmapText: {
+    color: "rgba(244,248,243,0.78)",
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  liveRoadmapTitle: {
+    color: "#FFF9F0",
+    fontSize: 14,
+    fontWeight: "900",
+    marginTop: 2,
+  },
+  metaChip: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderColor: "rgba(255,255,255,0.08)",
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  metaChipText: {
+    color: "#F6F3EA",
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  noticeCard: {
+    alignItems: "center",
+    backgroundColor: "#FFF1DE",
+    borderColor: "#F1C58E",
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 10,
+  },
+  noticeText: {
+    color: "#74522F",
+    flex: 1,
     fontSize: 12,
-    marginTop: 4,
-    textAlign: "center",
+    lineHeight: 17,
+  },
+  pathCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    overflow: "hidden",
+    padding: spacing.md,
+    position: "relative",
+  },
+  pathCardDisabled: {
+    opacity: 0.55,
+  },
+  pathCardSelected: {
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 18,
+  },
+  pathCode: {
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  pathDescription: {
+    color: colors.text,
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: spacing.sm,
+  },
+  pathFooter: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+    justifyContent: "space-between",
+  },
+  pathHeaderRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: spacing.sm,
+    justifyContent: "space-between",
+    marginBottom: spacing.xs,
+  },
+  pathHint: {
+    color: colors.primaryDark,
+    flex: 1,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  pathList: {
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  pathOrb: {
+    borderRadius: 90,
+    height: 96,
+    position: "absolute",
+    right: -24,
+    top: -20,
+    width: 96,
+  },
+  pathScoreBubble: {
+    alignItems: "center",
+    borderRadius: radius.pill,
+    justifyContent: "center",
+    minWidth: 58,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  pathScoreBubbleValue: {
+    color: "#FFFDF8",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  pathTag: {
+    borderRadius: radius.pill,
+    fontSize: 10,
+    fontWeight: "900",
+    overflow: "hidden",
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  pathTagAccent: {
+    backgroundColor: "#DDF3EE",
+    color: colors.primary,
+  },
+  pathTagDark: {
+    backgroundColor: colors.primaryDark,
+    color: "#FFFDF8",
+  },
+  pathTagMuted: {
+    backgroundColor: "#E7E0D1",
+    color: "#766C5C",
+  },
+  pathTagRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  pathTitle: {
+    color: colors.primaryDark,
+    fontSize: 16,
+    fontWeight: "900",
+    lineHeight: 20,
+    marginTop: 2,
+  },
+  pathTitleWrap: {
+    flex: 1,
+    minWidth: 0,
   },
   primaryButton: {
     alignItems: "center",
-    alignSelf: "flex-start",
-    backgroundColor: colors.primary,
     borderRadius: radius.pill,
-    marginBottom: spacing.xl,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: 16,
-    shadowColor: colors.primaryDark,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
+    marginBottom: spacing.lg,
+    paddingVertical: 13,
+  },
+  primaryButtonDisabled: {
+    backgroundColor: colors.surfaceDisabled,
   },
   primaryButtonText: {
-    color: colors.surface,
+    color: "#FFFDF8",
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 0.2,
+  },
+  progressBlock: {
+    marginBottom: spacing.xs,
+  },
+  quickCard: {
+    backgroundColor: "#F8F6EF",
+  },
+  quickCardHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  quickCardText: {
+    color: colors.text,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  quickCardTitle: {
+    color: colors.primaryDark,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  quickIconWrap: {
+    alignItems: "center",
+    borderRadius: radius.pill,
+    height: 38,
+    justifyContent: "center",
+    width: 38,
+  },
+  rankAvatar: {
+    alignItems: "center",
+    backgroundColor: "#EFE3CD",
+    borderRadius: radius.pill,
+    height: 34,
+    justifyContent: "center",
+    width: 34,
+  },
+  rankAvatarText: {
+    color: colors.primaryDark,
     fontSize: 13,
     fontWeight: "900",
-    letterSpacing: 0.8,
   },
-  summaryAction: {
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderRadius: radius.md,
-    marginTop: spacing.md,
-    paddingTop: spacing.md,
+  rankBadge: {
+    color: colors.accent,
+    fontSize: 13,
+    fontWeight: "900",
   },
-  summaryActionText: {
-    color: "#E4EDFF",
-    fontSize: 14,
-    fontStyle: "italic",
-    lineHeight: 22,
+  rankIndex: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: "900",
+    width: 24,
   },
-  summaryBadge: {
-    color: "#C9D8FF",
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 1,
-    marginBottom: spacing.md,
-    textTransform: "uppercase",
+  rankInfo: {
+    flex: 1,
+    minWidth: 0,
   },
-  summaryCard: {
-    backgroundColor: colors.primaryDark,
+  rankList: {
+    marginTop: spacing.xs,
   },
-  summaryLabel: {
-    color: "#DCE6FF",
-    fontSize: 14,
+  rankMeta: {
+    color: colors.textMuted,
+    fontSize: 11,
+    marginTop: 2,
   },
-  summaryRow: {
-    borderBottomColor: "rgba(255,255,255,0.12)",
-    borderBottomWidth: 1,
+  rankName: {
+    color: colors.primaryDark,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  rankRow: {
+    alignItems: "center",
+    borderTopColor: "#E5DCC9",
+    borderTopWidth: 1,
     flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: spacing.md,
+    gap: spacing.sm,
+    paddingVertical: 9,
   },
-  summaryValue: {
-    color: colors.surface,
-    fontSize: 20,
+  secondaryButton: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "#E6F2EF",
+    borderRadius: radius.pill,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+  },
+  secondaryButtonText: {
+    color: colors.primaryDark,
+    fontSize: 12,
     fontWeight: "900",
   },
 });

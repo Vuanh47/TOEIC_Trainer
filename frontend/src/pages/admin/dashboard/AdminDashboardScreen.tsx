@@ -1,6 +1,7 @@
 import { Redirect } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Platform,
   Pressable,
   ScrollView,
@@ -19,8 +20,10 @@ import AdminSidebar from "@/src/components/admin/AdminSidebar";
 import AdminTopBar from "@/src/components/admin/AdminTopBar";
 import { useAuth } from "@/src/hooks/use-auth";
 import { adminSidebarItems } from "@/src/pages/admin/dashboard/mock-data";
+import { logout } from "@/src/services/auth.service";
 import {
   AdminFlashcardService,
+  AdminGrammarService,
   AdminLearningModuleService,
   AdminLearningPathMilestoneService,
   AdminLearningPathService,
@@ -29,9 +32,11 @@ import {
   AdminPracticeSetService,
   AdminQuestionService,
   AdminVideoLessonService,
+  AdminTestService,
 } from "@/src/services/admin";
 import {
   AdminFlashcardApiItem,
+  GrammarApiItem,
   LearningModuleApiItem,
   LearningPathApiItem,
   LearningPathMilestoneApiItem,
@@ -41,6 +46,9 @@ import {
   PracticeSetQuestionApiItem,
   QuestionApiItem,
   VideoLessonApiItem,
+  TestApiItem,
+  TestPartApiItem,
+  TestPartQuestionApiItem,
 } from "@/src/types/admin-api";
 import { AdminSectionKey } from "@/src/types/admin";
 import { confirmWeb } from "@/src/utils/web-dialog";
@@ -163,7 +171,18 @@ const flashcardFields: AdminField[] = [
   { name: "active", label: "Active", type: "switch" },
 ];
 
-const videoFields = (modules: LearningModuleApiItem[]): AdminField[] => [
+const grammarFields: AdminField[] = [
+  { name: "title", label: "Title", type: "text", required: true },
+  { name: "content", label: "Content", type: "textarea", required: true },
+  { name: "tips", label: "Tips", type: "textarea" },
+  { name: "example", label: "Example", type: "textarea" },
+  { name: "active", label: "Active", type: "switch" },
+];
+
+const videoFields = (
+  modules: LearningModuleApiItem[],
+  uploadedVideoUrl?: string,
+): AdminField[] => [
   {
     name: "moduleId",
     label: "Module",
@@ -174,9 +193,14 @@ const videoFields = (modules: LearningModuleApiItem[]): AdminField[] => [
       value: String(module.id),
     })),
   },
-  { name: "courseId", label: "Course ID", type: "number" },
   { name: "title", label: "Title", type: "text", required: true },
-  { name: "videoUrl", label: "Video URL", type: "text", required: true },
+  {
+    name: "videoUrl",
+    label: "Video URL",
+    placeholder: uploadedVideoUrl ? "Đã upload xong, giữ URL này để tạo lesson." : "https://...",
+    type: "text",
+    required: true,
+  },
   {
     name: "durationSeconds",
     label: "Duration seconds",
@@ -240,19 +264,72 @@ const questionFields: AdminField[] = [
   { name: "explanation", label: "Explanation", type: "textarea" },
 ];
 
-const practiceSetQuestionFields: AdminField[] = [
-  { name: "questionId", label: "Question ID", type: "number", required: true },
+const testTypeOptions = [
+  { label: "Full Test", value: "FULL_TEST" },
+  { label: "Reading Only", value: "READING_ONLY" },
+  { label: "Listening Only", value: "LISTENING_ONLY" },
+  { label: "Practice", value: "PRACTICE" },
+];
+
+const testFields: AdminField[] = [
+  { name: "title", label: "Title", type: "text", required: true },
+  { name: "testType", label: "Test type", type: "select", options: testTypeOptions, required: true },
+  { name: "totalDurationMinutes", label: "Duration", type: "number", required: true },
+  { name: "targetScore", label: "Target score", type: "number", required: true },
+  { name: "description", label: "Description", type: "textarea" },
+  { name: "published", label: "Published", type: "switch" },
+];
+
+const partSectionOptions = [
+  { label: "Listening", value: "LISTENING" },
+  { label: "Reading", value: "READING" },
+];
+
+const testPartFields: AdminField[] = [
+  { name: "partName", label: "Part name", type: "text", required: true },
+  { name: "partNumber", label: "Part number", type: "number", required: true },
+  { name: "partSection", label: "Section", type: "select", options: partSectionOptions, required: true },
+  { name: "sortOrder", label: "Sort order", type: "number", required: true },
+  { name: "durationMinutes", label: "Duration", type: "number", required: true },
+  { name: "description", label: "Description", type: "textarea" },
+];
+const testPartQuestionFields = (questions: QuestionApiItem[]): AdminField[] => [
+  {
+    name: "questionId",
+    label: "Question",
+    type: "select",
+    required: true,
+    options: questions.map((q) => ({
+      label: `[#${q.id}] ${q.questionText.substring(0, 50)}${q.questionText.length > 50 ? "..." : ""}`,
+      value: String(q.id),
+    })),
+  },
+  { name: "sortOrder", label: "Sort order", type: "number", required: true },
+];
+
+const practiceSetQuestionFields = (questions: QuestionApiItem[]): AdminField[] => [
+  {
+    name: "questionId",
+    label: "Question",
+    type: "select",
+    required: true,
+    options: questions.map((q) => ({
+      label: `[#${q.id}] ${q.questionText.substring(0, 50)}${q.questionText.length > 50 ? "..." : ""}`,
+      value: String(q.id),
+    })),
+  },
   { name: "sortOrder", label: "Sort order", type: "number", required: true },
 ];
 
 export default function AdminDashboardScreen() {
-  const { auth, isHydrated } = useAuth();
+  const { auth, isHydrated, signOut } = useAuth();
   const [activeSection, setActiveSection] = useState<AdminSectionKey>("paths");
   const [paths, setPaths] = useState<LearningPathApiItem[]>([]);
   const [milestones, setMilestones] = useState<LearningPathMilestoneApiItem[]>(
     [],
   );
   const [modules, setModules] = useState<LearningModuleApiItem[]>([]);
+  const [grammars, setGrammars] = useState<GrammarApiItem[]>([]);
   const [milestoneModules, setMilestoneModules] = useState<
     MilestoneModuleApiItem[]
   >([]);
@@ -272,14 +349,25 @@ export default function AdminDashboardScreen() {
   const [selectedPracticeSetId, setSelectedPracticeSetId] = useState<
     number | null
   >(null);
+  const [tests, setTests] = useState<TestApiItem[]>([]);
+  const [testParts, setTestParts] = useState<TestPartApiItem[]>([]);
+  const [testPartQuestions, setTestPartQuestions] = useState<TestPartQuestionApiItem[]>([]);
+  const [selectedTestId, setSelectedTestId] = useState<number | null>(null);
+  const [selectedTestPartId, setSelectedTestPartId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [working, setWorking] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null);
+  const [uploadedVideoUrl, setUploadedVideoUrl] = useState("");
+  const [uploadedVideoDuration, setUploadedVideoDuration] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const services = useMemo(() => {
     if (!auth.accessToken) return null;
     return {
       flashcards: new AdminFlashcardService(auth.accessToken),
+      grammars: new AdminGrammarService(auth.accessToken),
       milestones: new AdminLearningPathMilestoneService(auth.accessToken),
       modules: new AdminLearningModuleService(auth.accessToken),
       paths: new AdminLearningPathService(auth.accessToken),
@@ -288,6 +376,7 @@ export default function AdminDashboardScreen() {
       questions: new AdminQuestionService(auth.accessToken),
       links: new AdminMilestoneModuleService(auth.accessToken),
       videos: new AdminVideoLessonService(auth.accessToken),
+      tests: new AdminTestService(auth.accessToken),
     };
   }, [auth.accessToken]);
 
@@ -312,9 +401,60 @@ export default function AdminDashboardScreen() {
 
   const handleError = useCallback((error: unknown) => {
     setErrorMessage(
-      error instanceof Error ? error.message : "Khong the xu ly yeu cau.",
+      error instanceof Error ? error.message : "Không thể xử lý yêu cầu.",
     );
   }, []);
+
+  const handleUploadVideoFile = useCallback(async () => {
+    if (!services) return;
+    if (Platform.OS !== "web") {
+      Alert.alert("Upload", "Upload file chỉ hỗ trợ trên web.");
+      return;
+    }
+
+    const picker = document.createElement("input");
+    picker.type = "file";
+    picker.accept = "video/*";
+    picker.onchange = async () => {
+      const file = picker.files?.[0];
+      if (!file) return;
+
+      try {
+        setUploadingVideo(true);
+        setErrorMessage(null);
+        setSelectedVideoFile(file);
+        const response = await services.videos.upload(file);
+        const uploadedUrl = response.data?.playbackUrl ?? response.data?.secureUrl ?? "";
+        if (!uploadedUrl) {
+          throw new Error("Upload xong nhưng không nhận được URL video.");
+        }
+
+        setUploadedVideoUrl(uploadedUrl);
+        setUploadedVideoDuration(response.data?.durationSeconds ?? null);
+        Alert.alert("Upload", "Upload video thành công. URL đã được điền vào form video.");
+      } catch (error) {
+        handleError(error);
+      } finally {
+        setUploadingVideo(false);
+      }
+    };
+
+    picker.click();
+  }, [handleError, services]);
+
+  const handleLogout = useCallback(async () => {
+    if (!auth.accessToken || isLoggingOut) return;
+
+    try {
+      setIsLoggingOut(true);
+      await logout(auth.accessToken, auth.tokenType ?? "Bearer");
+    } catch {
+      // Best-effort API logout. Local session still needs to be cleared.
+    } finally {
+      signOut();
+      setIsLoggingOut(false);
+    }
+  }, [auth.accessToken, auth.tokenType, isLoggingOut, signOut]);
 
   const loadBaseData = useCallback(async () => {
     if (!services) return;
@@ -324,18 +464,22 @@ export default function AdminDashboardScreen() {
       const [
         pathResponse,
         moduleResponse,
+        grammarResponse,
         questionResponse,
         permissionResponse,
       ] = await Promise.all([
         services.paths.getAll(),
         services.modules.getAll(),
+        services.grammars.getAll(),
         services.questions.getAll(),
         services.permissions.getAll(),
       ]);
       const nextPaths = pathResponse.data ?? [];
       const nextModules = moduleResponse.data ?? [];
+      const nextGrammars = grammarResponse.data ?? [];
       setPaths(nextPaths);
       setModules(nextModules);
+      setGrammars(nextGrammars);
       setQuestions(questionResponse.data ?? []);
       setPermissions(permissionResponse ?? []);
       setSelectedPathId((current) => current ?? nextPaths[0]?.id ?? null);
@@ -430,9 +574,59 @@ export default function AdminDashboardScreen() {
     }
   }, [handleError, selectedPracticeSetId, services]);
 
+  const loadTests = useCallback(async () => {
+    if (!services) return;
+    try {
+      const response = await services.tests.getAll();
+      const nextTests = response.data ?? [];
+      setTests(nextTests);
+      setSelectedTestId((current) =>
+        current && nextTests.some((item) => item.id === current)
+          ? current
+          : (nextTests[0]?.id ?? null),
+      );
+    } catch (error) {
+      handleError(error);
+    }
+  }, [handleError, services]);
+
+  const loadTestParts = useCallback(async () => {
+    if (!services || !selectedTestId) {
+      setTestParts([]);
+      return;
+    }
+    try {
+      const response = await services.tests.getParts(selectedTestId);
+      const nextParts = [...(response.data ?? [])].sort((a, b) => a.sortOrder - b.sortOrder);
+      setTestParts(nextParts);
+      setSelectedTestPartId((current) =>
+        current && nextParts.some((item) => item.id === current)
+          ? current
+          : (nextParts[0]?.id ?? null),
+      );
+    } catch (error) {
+      handleError(error);
+    }
+  }, [handleError, selectedTestId, services]);
+
+  const loadTestPartQuestions = useCallback(async () => {
+    if (!services || !selectedTestPartId) {
+      setTestPartQuestions([]);
+      return;
+    }
+    try {
+      const response = await services.tests.getPartQuestions(selectedTestPartId);
+      setTestPartQuestions([...(response.data ?? [])].sort((a, b) => a.sortOrder - b.sortOrder));
+    } catch (error) {
+      handleError(error);
+    }
+  }, [handleError, selectedTestPartId, services]);
+
   useEffect(() => {
+
     loadBaseData();
-  }, [loadBaseData]);
+    loadTests();
+  }, [loadBaseData, loadTests]);
 
   useEffect(() => {
     loadMilestones();
@@ -450,7 +644,16 @@ export default function AdminDashboardScreen() {
     loadPracticeSetQuestions();
   }, [loadPracticeSetQuestions]);
 
+  useEffect(() => {
+    loadTestParts();
+  }, [loadTestParts]);
+
+  useEffect(() => {
+    loadTestPartQuestions();
+  }, [loadTestPartQuestions]);
+
   const runAction = useCallback(
+
     async (action: () => Promise<void>, reload?: () => Promise<void>) => {
       try {
         setWorking(true);
@@ -473,28 +676,28 @@ export default function AdminDashboardScreen() {
   if (Platform.OS !== "web") {
     return (
       <AdminShell>
-        <Text style={styles.mobileNotice}>Admin dashboard chi ho tro web.</Text>
+        <Text style={styles.mobileNotice}>Bảng điều khiển admin chỉ hỗ trợ trên web.</Text>
       </AdminShell>
     );
   }
 
   const requirePath = () => {
-    if (!selectedPathId) throw new Error("Hay chon learning path truoc.");
+    if (!selectedPathId) throw new Error("Hãy chọn learning path trước.");
     return selectedPathId;
   };
 
   const requireMilestone = () => {
-    if (!selectedMilestoneId) throw new Error("Hay chon milestone truoc.");
+    if (!selectedMilestoneId) throw new Error("Hãy chọn milestone trước.");
     return selectedMilestoneId;
   };
 
   const requireModule = () => {
-    if (!selectedModuleId) throw new Error("Hay chon module truoc.");
+    if (!selectedModuleId) throw new Error("Hãy chọn module trước.");
     return selectedModuleId;
   };
 
   const requirePracticeSet = () => {
-    if (!selectedPracticeSetId) throw new Error("Hay chon practice set truoc.");
+    if (!selectedPracticeSetId) throw new Error("Hãy chọn practice set trước.");
     return selectedPracticeSetId;
   };
 
@@ -513,6 +716,18 @@ export default function AdminDashboardScreen() {
       sourceType: text(values, "sourceType") || null,
       sourceYear: numberValue(values, "sourceYear"),
     };
+  };
+
+  const getGrammarInitialValues = (item?: GrammarApiItem): FormValues => ({
+    active: item?.active ?? true,
+    content: item?.content ?? "",
+    example: item?.example ?? "",
+    tips: item?.tips ?? "",
+    title: item?.title ?? "",
+  });
+
+  const reloadGrammars = async () => {
+    await loadBaseData();
   };
 
   const renderSelector = <
@@ -550,7 +765,7 @@ export default function AdminDashboardScreen() {
             );
           })}
           {items.length === 0 ? (
-            <Text style={styles.selectorEmpty}>Chua co du lieu</Text>
+            <Text style={styles.selectorEmpty}>Chưa có dữ liệu</Text>
           ) : null}
         </View>
       </ScrollView>
@@ -686,8 +901,8 @@ export default function AdminDashboardScreen() {
         records={milestones}
         subtitle={
           selectedPath
-            ? `Dang quan ly milestones cua ${selectedPath.title}`
-            : "Chon learning path"
+            ? `Đang quản lý milestones của ${selectedPath.title}`
+            : "Chọn learning path"
         }
         title="Learning Path Milestone APIs"
         working={working}
@@ -770,10 +985,9 @@ export default function AdminDashboardScreen() {
           )
         }
         onDelete={(item) =>
-          confirmWeb(`Deactivate module "${item.title}"?`)
+          confirmWeb(`Xoa module "${item.title}"?`)
             ? runAction(
-                () =>
-                  services!.modules.deactivate(item.id).then(() => undefined),
+                () => services!.modules.delete(item.id).then(() => undefined),
                 loadBaseData,
               )
             : Promise.resolve()
@@ -955,11 +1169,35 @@ export default function AdminDashboardScreen() {
         subtitle={
           selectedModule
             ? `Module #${selectedModule.id}: ${selectedModule.title}`
-            : "Chon module"
+            : "Chọn module"
         }
         title="Flashcard APIs"
         working={working}
       />
+      <View style={styles.uploadBox}>
+        <Text style={styles.uploadTitle}>Tải video lên</Text>
+        <Text style={styles.uploadSubtitle}>
+          Upload file video len Cloudinary roi dung URL nay de tao lesson.
+        </Text>
+        <Pressable
+          disabled={!services || uploadingVideo || working}
+          onPress={handleUploadVideoFile}
+          style={styles.uploadButton}
+        >
+          <Text style={styles.uploadButtonText}>
+            {uploadingVideo ? "Đang upload..." : "Chọn file video và upload"}
+          </Text>
+        </Pressable>
+        <Text style={styles.uploadHint}>
+          URL moi nhat: {uploadedVideoUrl || "(chua upload)"}
+        </Text>
+        <Text style={styles.uploadHint}>
+          File da chon: {selectedVideoFile?.name ?? "(chua chon file)"}
+        </Text>
+        {uploadedVideoDuration ? (
+          <Text style={styles.uploadHint}>Thời lượng từ Cloudinary: {uploadedVideoDuration}s</Text>
+        ) : null}
+      </View>
       <AdminCrudPanel
         columns={[
           { label: "ID", render: (item) => String(item.id) },
@@ -970,39 +1208,49 @@ export default function AdminDashboardScreen() {
           },
           { label: "Published", render: (item) => yesNo(item.published) },
         ]}
-        fields={videoFields(modules)}
+        fields={videoFields(modules, uploadedVideoUrl)}
         getInitialValues={(item?: VideoLessonApiItem) => ({
-          courseId: String(item?.courseId ?? ""),
           description: item?.description ?? "",
-          durationSeconds: String(item?.durationSeconds ?? 900),
+          durationSeconds: String(item?.durationSeconds ?? uploadedVideoDuration ?? 900),
           free: item?.free ?? false,
           moduleId: String(item?.moduleId ?? selectedModuleId ?? ""),
           published: item?.published ?? true,
           sortOrder: String(item?.sortOrder ?? videos.length + 1),
           title: item?.title ?? "",
-          videoUrl: item?.videoUrl ?? "",
+          videoUrl: item?.videoUrl ?? uploadedVideoUrl ?? "",
         })}
         getItemId={(item) => item.id}
         onCreate={(values) =>
           runAction(
             () => {
               const payload = {
-                courseId: numberValue(values, "courseId"),
                 description: nullableText(values, "description"),
-                durationSeconds: numberValue(
-                  values,
-                  "durationSeconds",
-                  true,
-                )!,
                 free: boolValue(values, "free"),
                 moduleId: numberValue(values, "moduleId", true)!,
                 published: boolValue(values, "published"),
                 sortOrder: numberValue(values, "sortOrder", true)!,
                 title: text(values, "title", true),
-                videoUrl: text(values, "videoUrl", true),
               };
-              console.log('Creating video payload', payload);
-              return services!.videos.create(payload).then(() => undefined);
+              if (selectedVideoFile) {
+                return services!.videos
+                  .uploadAndCreate(selectedVideoFile, {
+                    ...payload,
+                    description: payload.description ?? null,
+                  })
+                  .then(() => {
+                    setUploadedVideoUrl("");
+                    setUploadedVideoDuration(null);
+                    setSelectedVideoFile(null);
+                  });
+              }
+
+              return services!.videos
+                .create({
+                  ...payload,
+                  durationSeconds: numberValue(values, "durationSeconds", true)!,
+                  videoUrl: text(values, "videoUrl", true),
+                })
+                .then(() => undefined);
             },
             loadContent,
           )
@@ -1020,7 +1268,6 @@ export default function AdminDashboardScreen() {
           runAction(
             () => {
               const payload = {
-                courseId: numberValue(values, "courseId"),
                 description: nullableText(values, "description"),
                 durationSeconds: numberValue(
                   values,
@@ -1129,6 +1376,94 @@ export default function AdminDashboardScreen() {
     </View>
   );
 
+  const renderGrammars = () => (
+    <View style={styles.stack}>
+      <View style={styles.grammarTopBar}>
+        <View style={styles.summaryRow}>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Tổng số</Text>
+            <Text style={styles.summaryValue}>{grammars.length}</Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Đang hiển thị</Text>
+            <Text style={styles.summaryValue}>
+              {grammars.filter((item) => item.active).length}
+            </Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Tam an</Text>
+            <Text style={styles.summaryValue}>
+              {grammars.filter((item) => !item.active).length}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.grammarTopActions}>
+          <Pressable
+            disabled={working}
+            onPress={reloadGrammars}
+            style={styles.grammarGhostButton}
+          >
+            <Text style={styles.grammarGhostButtonText}>Tai lai</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <AdminCrudPanel
+        columns={[
+          { label: "Title", render: (item) => item.title },
+          { label: "Status", render: (item) => (item.active ? "Active" : "Inactive") },
+        ]}
+        fields={grammarFields}
+        getInitialValues={getGrammarInitialValues}
+        getItemId={(item) => item.id}
+        loading={loading}
+        onCreate={(values) =>
+          runAction(
+            () =>
+              services!.grammars
+                .create({
+                  active: boolValue(values, "active"),
+                  content: text(values, "content", true),
+                  example: nullableText(values, "example"),
+                  tips: nullableText(values, "tips"),
+                  title: text(values, "title", true),
+                })
+                .then(() => undefined),
+            reloadGrammars,
+          )
+        }
+        onDelete={(item) =>
+          confirmWeb(`Xoa grammar "${item.title}"?`)
+            ? runAction(
+                () => services!.grammars.delete(item.id).then(() => undefined),
+                reloadGrammars,
+              )
+            : Promise.resolve()
+        }
+        onRefresh={reloadGrammars}
+        onUpdate={(item, values) =>
+          runAction(
+            () =>
+              services!.grammars
+                .update(item.id, {
+                  active: boolValue(values, "active"),
+                  content: text(values, "content", true),
+                  example: nullableText(values, "example"),
+                  tips: nullableText(values, "tips"),
+                  title: text(values, "title", true),
+                })
+                .then(() => undefined),
+            reloadGrammars,
+          )
+        }
+        records={grammars}
+        subtitle="Chi hien thi title, status va action. Sua se mo modal."
+        title="Bang ngu phap"
+        working={working}
+      />
+    </View>
+  );
+
   const renderQuestions = () => (
     <View style={styles.stack}>
       <AdminCrudPanel
@@ -1204,10 +1539,10 @@ export default function AdminDashboardScreen() {
             label: "Practice set",
             render: (item) => String(item.practiceSetId),
           },
-          { label: "Question", render: (item) => String(item.questionId) },
+          { label: "Question", render: (item) => item.question?.questionText || String(item.questionId) },
           { label: "Order", render: (item) => String(item.sortOrder) },
         ]}
-        fields={practiceSetQuestionFields}
+        fields={practiceSetQuestionFields(questions)}
         getInitialValues={(item?: PracticeSetQuestionApiItem) => ({
           questionId: String(item?.questionId ?? questions[0]?.id ?? ""),
           sortOrder: String(item?.sortOrder ?? practiceSetQuestions.length + 1),
@@ -1234,7 +1569,7 @@ export default function AdminDashboardScreen() {
           )
         }
         onDelete={(item) =>
-          confirmWeb(`Go question #${item.questionId} khoi practice set?`)
+          confirmWeb(`Gỡ question #${item.questionId} khỏi practice set?`)
             ? runAction(
                 () =>
                   services!.practiceSets
@@ -1276,8 +1611,8 @@ export default function AdminDashboardScreen() {
         records={practiceSetQuestions}
         subtitle={
           selectedPracticeSet
-            ? `Dang gan cau hoi cho ${selectedPracticeSet.title}`
-            : "Chon practice set"
+            ? `Đang gán câu hỏi cho ${selectedPracticeSet.title}`
+            : "Chọn practice set"
         }
         title="Practice Set Question APIs"
         working={working}
@@ -1304,18 +1639,199 @@ export default function AdminDashboardScreen() {
     />
   );
 
+  const renderTests = () => (
+    <View style={styles.stack}>
+      <AdminCrudPanel
+        columns={[
+          { label: "ID", render: (item) => String(item.id) },
+          { label: "Title", render: (item) => item.title },
+          { label: "Type", render: (item) => item.testType },
+          { label: "Duration", render: (item) => `${item.totalDurationMinutes}m` },
+          { label: "Published", render: (item) => yesNo(item.published) },
+        ]}
+        fields={testFields}
+        getInitialValues={(item?: TestApiItem) => ({
+          title: item?.title ?? "",
+          testType: item?.testType ?? "FULL_TEST",
+          totalDurationMinutes: String(item?.totalDurationMinutes ?? 120),
+          targetScore: String(item?.targetScore ?? 500),
+          description: item?.description ?? "",
+          published: item?.published ?? false,
+        })}
+        getItemId={(item) => item.id}
+        onCreate={(values) =>
+          runAction(
+            () =>
+              services!.tests
+                .create({
+                  title: text(values, "title", true),
+                  testType: text(values, "testType", true),
+                  totalDurationMinutes: numberValue(values, "totalDurationMinutes", true)!,
+                  targetScore: numberValue(values, "targetScore", true)!,
+                  description: text(values, "description"),
+                  published: boolValue(values, "published"),
+                })
+                .then(() => undefined),
+            loadTests,
+          )
+        }
+        onDelete={(item) =>
+          confirmWeb(`Xoa test "${item.title}"?`)
+            ? runAction(
+                () => services!.tests.delete(item.id).then(() => undefined),
+                loadTests,
+              )
+            : Promise.resolve()
+        }
+        onRefresh={loadTests}
+        onUpdate={(item, values) =>
+          runAction(
+            () =>
+              services!.tests
+                .update(item.id, {
+                  title: text(values, "title", true),
+                  testType: text(values, "testType", true),
+                  totalDurationMinutes: numberValue(values, "totalDurationMinutes", true)!,
+                  targetScore: numberValue(values, "targetScore", true)!,
+                  description: text(values, "description"),
+                  published: boolValue(values, "published"),
+                })
+                .then(() => undefined),
+            loadTests,
+          )
+        }
+        records={tests}
+        title="Test Management"
+        working={working}
+      />
+
+      {renderSelector("Manage Parts for Test", tests, selectedTestId, setSelectedTestId)}
+
+      <AdminCrudPanel
+        columns={[
+          { label: "ID", render: (item) => String(item.id) },
+          { label: "No.", render: (item) => String(item.partNumber) },
+          { label: "Name", render: (item) => item.partName },
+          { label: "Section", render: (item) => item.partSection },
+          { label: "Duration", render: (item) => `${item.durationMinutes}m` },
+          { label: "Questions", render: (item) => String(item.questionCount) },
+        ]}
+        fields={testPartFields}
+        getInitialValues={(item?: TestPartApiItem) => ({
+          partName: item?.partName ?? "",
+          partNumber: String(item?.partNumber ?? testParts.length + 1),
+          partSection: item?.partSection ?? "LISTENING",
+          sortOrder: String(item?.sortOrder ?? testParts.length + 1),
+          durationMinutes: String(item?.durationMinutes ?? 45),
+          description: item?.description ?? "",
+        })}
+        getItemId={(item) => item.id}
+        onCreate={(values) =>
+          runAction(
+            () =>
+              services!.tests
+                .createPart(selectedTestId!, {
+                  partName: text(values, "partName", true),
+                  partNumber: numberValue(values, "partNumber", true)!,
+                  partSection: text(values, "partSection", true),
+                  sortOrder: numberValue(values, "sortOrder", true)!,
+                  durationMinutes: numberValue(values, "durationMinutes", true)!,
+                  description: text(values, "description"),
+                })
+                .then(() => undefined),
+            loadTestParts,
+          )
+        }
+        onDelete={(item) =>
+          confirmWeb(`Xoa part "${item.partName}"?`)
+            ? runAction(
+                () => services!.tests.deletePart(item.id).then(() => undefined),
+                loadTestParts,
+              )
+            : Promise.resolve()
+        }
+        onRefresh={loadTestParts}
+        onUpdate={(item, values) =>
+          runAction(
+            () =>
+              services!.tests
+                .updatePart(item.id, {
+                  partName: text(values, "partName", true),
+                  partNumber: numberValue(values, "partNumber", true)!,
+                  partSection: text(values, "partSection", true),
+                  sortOrder: numberValue(values, "sortOrder", true)!,
+                  durationMinutes: numberValue(values, "durationMinutes", true)!,
+                  description: text(values, "description"),
+                })
+                .then(() => undefined),
+            loadTestParts,
+          )
+        }
+        records={testParts}
+        title="Test Part Management"
+        working={working}
+      />
+
+      {renderSelector("Gán câu hỏi vào part", testParts, selectedTestPartId, setSelectedTestPartId)}
+
+      <AdminCrudPanel
+        columns={[
+          { label: "ID", render: (item) => String(item.id) },
+          { label: "Question", render: (item) => item.questionText || String(item.questionId) },
+          { label: "Sort", render: (item) => String(item.sortOrder) },
+        ]}
+        fields={testPartQuestionFields(questions)}
+        getInitialValues={(item?: TestPartQuestionApiItem) => ({
+          questionId: String(item?.questionId ?? ""),
+          sortOrder: String(item?.sortOrder ?? testPartQuestions.length + 1),
+        })}
+        getItemId={(item) => item.id}
+        onCreate={(values) =>
+          runAction(
+            () =>
+              services!.tests
+                .assignQuestions(selectedTestPartId!, {
+                  questionIds: [numberValue(values, "questionId", true)!],
+                })
+                .then(() => undefined),
+            loadTestPartQuestions,
+          )
+        }
+        onDelete={(item) =>
+          confirmWeb(`Gỡ question #${item.questionId} khỏi part?`)
+            ? runAction(
+                () => services!.tests.removeQuestion(selectedTestPartId!, item.id).then(() => undefined),
+                loadTestPartQuestions,
+              )
+            : Promise.resolve()
+        }
+        onRefresh={loadTestPartQuestions}
+        records={testPartQuestions}
+        title="Gán câu hỏi cho part"
+        working={working}
+      />
+    </View>
+  );
+
   const renderActiveSection = () => {
+
     if (activeSection === "paths") return renderPaths();
     if (activeSection === "milestones") return renderMilestones();
     if (activeSection === "modules") return renderModules();
+    if (activeSection === "grammars") return renderGrammars();
     if (activeSection === "content") return renderContent();
     if (activeSection === "questions") return renderQuestions();
+    if (activeSection === "tests") return renderTests();
     return renderPermissions();
   };
 
   return (
     <AdminShell>
-      <AdminTopBar adminName={auth.user?.fullName ?? "Admin"} />
+      <AdminTopBar
+        adminName={auth.user?.fullName ?? "Admin"}
+        isLoggingOut={isLoggingOut}
+        onLogout={handleLogout}
+      />
       <View style={styles.layout}>
         <AdminSidebar
           activeItemId={activeSection}
@@ -1325,21 +1841,25 @@ export default function AdminDashboardScreen() {
         <View style={styles.mainPanel}>
           <View style={styles.pageHeader}>
             <View>
-              <Text style={styles.pageEyebrow}>Backend Admin APIs</Text>
+              <Text style={styles.pageEyebrow}>API quản trị backend</Text>
               <Text style={styles.pageTitle}>{activeSectionLabel}</Text>
             </View>
             <View style={styles.metricRow}>
               <View style={styles.metricCard}>
                 <Text style={styles.metricValue}>{paths.length}</Text>
-                <Text style={styles.metricLabel}>Paths</Text>
+                <Text style={styles.metricLabel}>Lộ trình</Text>
               </View>
               <View style={styles.metricCard}>
                 <Text style={styles.metricValue}>{modules.length}</Text>
-                <Text style={styles.metricLabel}>Modules</Text>
+                <Text style={styles.metricLabel}>Module</Text>
               </View>
               <View style={styles.metricCard}>
                 <Text style={styles.metricValue}>{questions.length}</Text>
-                <Text style={styles.metricLabel}>Questions</Text>
+                <Text style={styles.metricLabel}>Câu hỏi</Text>
+              </View>
+              <View style={styles.metricCard}>
+                <Text style={styles.metricValue}>{grammars.length}</Text>
+                <Text style={styles.metricLabel}>Ngữ pháp</Text>
               </View>
             </View>
           </View>
@@ -1469,6 +1989,472 @@ const styles = StyleSheet.create({
   selectorTextActive: {
     color: colors.text,
     fontWeight: "900",
+  },
+  detailCard: {
+    backgroundColor: "#10213A",
+    borderColor: "#2B4D7C",
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: spacing.md,
+  },
+  detailHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.md,
+    justifyContent: "space-between",
+    marginBottom: spacing.md,
+  },
+  detailTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  detailSubtitle: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  detailButton: {
+    alignItems: "center",
+    backgroundColor: "#2F6EA8",
+    borderRadius: 10,
+    justifyContent: "center",
+    minHeight: 40,
+    paddingHorizontal: spacing.md,
+  },
+  detailButtonText: {
+    color: colors.surface,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  detailGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
+  },
+  detailItem: {
+    backgroundColor: "#0D1627",
+    borderColor: "#26374F",
+    borderRadius: 12,
+    borderWidth: 1,
+    flex: 1,
+    minWidth: 220,
+    padding: spacing.md,
+  },
+  detailItemWide: {
+    backgroundColor: "#0D1627",
+    borderColor: "#26374F",
+    borderRadius: 12,
+    borderWidth: 1,
+    flexBasis: "100%",
+    padding: spacing.md,
+  },
+  detailLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "800",
+    marginBottom: spacing.xs,
+    textTransform: "uppercase",
+  },
+  detailValue: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 20,
+  },
+  grammarWorkspace: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.lg,
+    alignItems: "flex-start",
+  },
+  grammarTopBar: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
+    justifyContent: "space-between",
+  },
+  grammarTopActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    marginLeft: "auto",
+  },
+  grammarListCard: {
+    backgroundColor: "#111C30",
+    borderColor: "#283A55",
+    borderRadius: 18,
+    borderWidth: 1,
+    flexBasis: 320,
+    flexGrow: 1,
+    flexShrink: 1,
+    maxWidth: 380,
+    padding: spacing.md,
+  },
+  grammarDetailCard: {
+    backgroundColor: "#13233C",
+    borderColor: "#2B4264",
+    borderRadius: 18,
+    borderWidth: 1,
+    flex: 1,
+    flexBasis: 560,
+    flexGrow: 999,
+    flexShrink: 1,
+    minHeight: 520,
+    minWidth: 0,
+    padding: spacing.lg,
+  },
+  grammarTableWrap: {
+    backgroundColor: "#111C30",
+    borderColor: "#283A55",
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: spacing.lg,
+  },
+  grammarTableScroller: {
+    borderColor: "#22364F",
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  grammarTable: {
+    backgroundColor: "#0F1B2E",
+    minWidth: 1480,
+  },
+  grammarTableHeaderRow: {
+    backgroundColor: "#16243A",
+    borderBottomColor: "#22364F",
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    paddingHorizontal: spacing.md,
+    paddingVertical: 14,
+  },
+  grammarTableDataRow: {
+    borderBottomColor: "#22364F",
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  grammarTableDataRowActive: {
+    backgroundColor: "rgba(47,110,168,0.12)",
+  },
+  grammarTableEmptyRow: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 88,
+    paddingHorizontal: spacing.md,
+  },
+  grammarHeaderCell: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "800",
+    paddingRight: spacing.md,
+    textTransform: "uppercase",
+  },
+  grammarBodyCell: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "600",
+    lineHeight: 22,
+    paddingRight: spacing.md,
+  },
+  grammarIdCol: {
+    width: 72,
+  },
+  grammarTitleCol: {
+    width: 220,
+  },
+  grammarContentCol: {
+    width: 360,
+  },
+  grammarTipsCol: {
+    width: 280,
+  },
+  grammarExampleCol: {
+    width: 280,
+  },
+  grammarStatusCol: {
+    width: 120,
+  },
+  grammarActionsCol: {
+    width: 180,
+  },
+  grammarStatusCellWrap: {
+    alignItems: "flex-start",
+    justifyContent: "center",
+  },
+  grammarActionsRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  grammarMiniPrimaryButton: {
+    alignItems: "center",
+    backgroundColor: "#2F6EA8",
+    borderRadius: 8,
+    justifyContent: "center",
+    minHeight: 36,
+    minWidth: 72,
+    paddingHorizontal: 12,
+  },
+  grammarMiniPrimaryButtonText: {
+    color: colors.surface,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  grammarBlockHeader: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
+    justifyContent: "space-between",
+    marginBottom: spacing.md,
+  },
+  grammarBlockTitle: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  grammarBlockSubtitle: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 4,
+  },
+  grammarHeaderActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    justifyContent: "flex-start",
+  },
+  grammarGhostButton: {
+    alignItems: "center",
+    backgroundColor: "#16243A",
+    borderColor: "#304764",
+    borderRadius: 10,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 40,
+    paddingHorizontal: spacing.md,
+  },
+  grammarGhostButtonText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  grammarPrimaryButton: {
+    alignItems: "center",
+    backgroundColor: "#2F6EA8",
+    borderRadius: 10,
+    justifyContent: "center",
+    minHeight: 40,
+    paddingHorizontal: spacing.md,
+  },
+  grammarPrimaryButtonText: {
+    color: colors.surface,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  grammarDangerButton: {
+    alignItems: "center",
+    backgroundColor: "rgba(239,68,68,0.16)",
+    borderColor: "rgba(239,68,68,0.36)",
+    borderRadius: 10,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 40,
+    paddingHorizontal: spacing.md,
+  },
+  grammarDangerButtonText: {
+    color: "#FFB4B4",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  grammarList: {
+    gap: spacing.sm,
+  },
+  grammarListItem: {
+    backgroundColor: "#0D1627",
+    borderColor: "#23354F",
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: spacing.md,
+  },
+  grammarListItemActive: {
+    backgroundColor: "#173155",
+    borderColor: colors.accent,
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+  },
+  grammarListItemTop: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+    justifyContent: "space-between",
+  },
+  grammarListItemTitle: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "800",
+    paddingRight: spacing.sm,
+  },
+  grammarListItemExcerpt: {
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: spacing.sm,
+  },
+  grammarStatusBadge: {
+    borderRadius: 999,
+    fontSize: 11,
+    fontWeight: "900",
+    overflow: "hidden",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    textTransform: "uppercase",
+  },
+  grammarStatusBadgeOn: {
+    backgroundColor: "rgba(34,197,94,0.18)",
+    color: "#9EF0B7",
+  },
+  grammarStatusBadgeOff: {
+    backgroundColor: "rgba(148,163,184,0.18)",
+    color: "#D0D9E5",
+  },
+  grammarHero: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
+  },
+  grammarHeroMain: {
+    backgroundColor: "#0F1B2E",
+    borderColor: "#22364F",
+    borderRadius: 16,
+    borderWidth: 1,
+    flex: 1,
+    flexBasis: 380,
+    minWidth: 0,
+    padding: spacing.lg,
+  },
+  grammarHeroTitle: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: "900",
+    marginBottom: spacing.sm,
+  },
+  grammarHeroContent: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "600",
+    lineHeight: 24,
+  },
+  grammarMetaCard: {
+    backgroundColor: "#0F1B2E",
+    borderColor: "#22364F",
+    borderRadius: 16,
+    borderWidth: 1,
+    flexBasis: 220,
+    flexGrow: 1,
+    justifyContent: "center",
+    minWidth: 220,
+    padding: spacing.lg,
+  },
+  grammarMetaLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "800",
+    marginBottom: spacing.xs,
+    textTransform: "uppercase",
+  },
+  grammarMetaValue: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: "900",
+    lineHeight: 24,
+  },
+  grammarInfoGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
+    marginTop: spacing.md,
+  },
+  grammarInfoCard: {
+    backgroundColor: "#0F1B2E",
+    borderColor: "#22364F",
+    borderRadius: 16,
+    borderWidth: 1,
+    flex: 1,
+    minWidth: 260,
+    padding: spacing.lg,
+  },
+  grammarMetaList: {
+    gap: spacing.sm,
+  },
+  grammarMetaRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  grammarMetaRowLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  grammarMetaRowValue: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  grammarInfoLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "800",
+    marginBottom: spacing.sm,
+    textTransform: "uppercase",
+  },
+  grammarInfoValue: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "600",
+    lineHeight: 24,
+  },
+  uploadBox: {
+    backgroundColor: "#10213A",
+    borderColor: "#2B4D7C",
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: spacing.md,
+  },
+  uploadButton: {
+    alignItems: "center",
+    backgroundColor: "#2F6EA8",
+    borderRadius: 10,
+    marginTop: spacing.sm,
+    paddingVertical: 12,
+  },
+  uploadButtonText: {
+    color: colors.surface,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  uploadHint: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: spacing.sm,
+  },
+  uploadSubtitle: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  uploadTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "800",
   },
   summaryRow: {
     flexDirection: "row",

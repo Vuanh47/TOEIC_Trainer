@@ -1,8 +1,10 @@
 spring:
   datasource:
+
     url: "jdbc:mysql://localhost:3306/toeic"
     username: root
     password: root
+
 
   jpa:
     show-sql: true
@@ -35,7 +37,7 @@ spring:
               - read:user
               - user:email
 jwt:
-  secret: "3b3529bc2a79f9035075bd915c1e9cf227d2c41043cf617ba6e66c816777b5ad"
+  secret: ${JWT_SECRET}
   expiration-ms: 86400000
 
 server:

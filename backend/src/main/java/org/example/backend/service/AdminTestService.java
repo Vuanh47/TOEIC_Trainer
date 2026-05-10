@@ -22,6 +22,8 @@ import org.example.backend.repository.TestRepository;
 import org.example.backend.repository.TestPartRepository;
 import org.example.backend.repository.TestPartQuestionRepository;
 import org.example.backend.repository.QuestionRepository;
+import org.example.backend.repository.UserTestAnswerRepository;
+import org.example.backend.repository.UserTestAttemptRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +37,8 @@ public class AdminTestService {
     private final TestRepository testRepository;
     private final TestPartRepository testPartRepository;
     private final TestPartQuestionRepository testPartQuestionRepository;
+    private final UserTestAnswerRepository userTestAnswerRepository;
+    private final UserTestAttemptRepository userTestAttemptRepository;
     private final QuestionRepository questionRepository;
     private final TestMapper testMapper;
     private final TestPartMapper testPartMapper;
@@ -107,6 +111,8 @@ public class AdminTestService {
     @Transactional
     public void deleteTest(Long testId) {
         Test test = findTest(testId);
+        userTestAnswerRepository.deleteByTestId(testId);
+        userTestAttemptRepository.deleteByTestId(testId);
         testRepository.delete(test);
     }
 
@@ -165,6 +171,8 @@ public class AdminTestService {
     @Transactional
     public void deleteTestPart(Long testPartId) {
         TestPart part = findTestPart(testPartId);
+        // delete any user answers referencing questions in this part first to avoid FK constraint
+        userTestAnswerRepository.deleteByTestPartId(testPartId);
         testPartQuestionRepository.deleteByTestPartId(testPartId);
         testPartRepository.delete(part);
     }
@@ -236,6 +244,8 @@ public class AdminTestService {
             throw new AppException(ErrorCode.QUESTION_NOT_FOUND);
         }
 
+        // remove any user answers that reference this question first
+        userTestAnswerRepository.deleteByTestPartQuestionId(testPartQuestionId);
         testPartQuestionRepository.delete(tpq);
         part.setQuestionCount(Math.max(0, part.getQuestionCount() - 1));
         testPartRepository.save(part);

@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
-import { colors, radius, spacing } from "@/src/assets/styles/theme";
+import { colors, radius, spacing } from "@/src/assets/styles/user-theme";
 import AppHeader from "@/src/components/user/AppHeader";
 import UserScreen from "@/src/components/user/UserScreen";
 import { transcriptSegments } from "@/src/pages/user/mock-data";
@@ -17,7 +17,7 @@ export default function NotebookScreen() {
         leftIcon="chevron-back-outline"
         onLeftPress={() => setVisible(true)}
         rightSlot={<Ionicons color={colors.primaryDark} name="person-circle" size={40} />}
-        title="Academic Concierge"
+        title="Cố vấn học tập"
       />
 
       <View style={styles.lessonPreview}>
@@ -28,7 +28,7 @@ export default function NotebookScreen() {
             </View>
             <View style={styles.noteChip}>
               <Ionicons color={colors.surface} name="mic-outline" size={16} />
-              <Text style={styles.noteChipText}>Add Note</Text>
+              <Text style={styles.noteChipText}>Thêm ghi chú</Text>
             </View>
           </View>
         </View>
@@ -51,18 +51,18 @@ export default function NotebookScreen() {
           <View style={styles.bottomSheet}>
             <View style={styles.grabber} />
             <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>Them ghi chu moi</Text>
+              <Text style={styles.sheetTitle}>Thêm ghi chú mới</Text>
               <View style={styles.timePill}>
-                <Text style={styles.timePillText}>Tua den [05:22]</Text>
+                <Text style={styles.timePillText}>Tua đến [05:22]</Text>
               </View>
             </View>
 
-            <Text style={styles.inputLabel}>NOI DUNG GHI CHU</Text>
+            <Text style={styles.inputLabel}>NỘI DUNG GHI CHÚ</Text>
             <TextInput
               multiline
               numberOfLines={5}
               onChangeText={setNote}
-              placeholder="Nhap noi dung ghi chu tai day..."
+              placeholder="Nhập nội dung ghi chú tại đây..."
               placeholderTextColor="#B5B9C8"
               style={styles.textArea}
               value={note}
@@ -70,10 +70,10 @@ export default function NotebookScreen() {
 
             <View style={styles.sheetActions}>
               <Pressable onPress={() => setVisible(false)} style={styles.sheetPrimary}>
-                <Text style={styles.sheetPrimaryText}>Luu ghi chu</Text>
+                <Text style={styles.sheetPrimaryText}>Lưu ghi chú</Text>
               </Pressable>
               <Pressable onPress={() => setVisible(false)} style={styles.sheetSecondary}>
-                <Text style={styles.sheetSecondaryText}>Dong</Text>
+                <Text style={styles.sheetSecondaryText}>Đóng</Text>
               </Pressable>
             </View>
           </View>

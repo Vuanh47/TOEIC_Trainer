@@ -20,6 +20,8 @@ import org.example.backend.repository.LearningModuleRepository;
 import org.example.backend.repository.PracticeSetQuestionRepository;
 import org.example.backend.repository.PracticeSetRepository;
 import org.example.backend.repository.QuestionRepository;
+import org.example.backend.repository.UserPracticeAnswerRepository;
+import org.example.backend.repository.UserPracticeAttemptRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +38,8 @@ public class AdminPracticeSetService {
     private final LearningModuleRepository learningModuleRepository;
     private final QuestionRepository questionRepository;
     private final PracticeSetQuestionRepository practiceSetQuestionRepository;
+    private final UserPracticeAnswerRepository userPracticeAnswerRepository;
+    private final UserPracticeAttemptRepository userPracticeAttemptRepository;
     private final PracticeSetMapper practiceSetMapper;
     private final PracticeSetQuestionMapper practiceSetQuestionMapper;
 
@@ -126,6 +130,8 @@ public class AdminPracticeSetService {
     @Transactional
     public void deletePracticeSet(Long practiceSetId) {
         PracticeSet practiceSet = findPracticeSet(practiceSetId);
+        userPracticeAnswerRepository.deleteByPracticeSetId(practiceSetId);
+        userPracticeAttemptRepository.deleteByPracticeSetId(practiceSetId);
         practiceSetQuestionRepository.deleteByPracticeSetId(practiceSetId);
         practiceSetRepository.delete(practiceSet);
     }

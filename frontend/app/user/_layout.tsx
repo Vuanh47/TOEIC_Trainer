@@ -22,6 +22,11 @@ export default function UserLayout() {
       <Stack.Screen name="notebook" />
       <Stack.Screen name="lesson" />
       <Stack.Screen name="exam" />
+      <Stack.Screen name="attempt-review" />
+      <Stack.Screen name="practice-module" />
+      <Stack.Screen name="practice-session" />
+      <Stack.Screen name="practice-attempt-review" />
+      <Stack.Screen name="path-complete" />
     </Stack>
   );
 }

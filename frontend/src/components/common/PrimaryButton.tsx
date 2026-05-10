@@ -23,6 +23,7 @@ export default function PrimaryButton({
         loading ? styles.buttonDisabled : null,
       ]}>
       <View style={styles.glow} />
+      <View style={styles.shine} />
       {loading ? (
         <ActivityIndicator color={colors.surface} />
       ) : (
@@ -37,16 +38,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.primary,
     borderRadius: radius.pill,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: 'rgba(255,255,255,0.28)',
     borderWidth: 1,
     elevation: 5,
     justifyContent: 'center',
-    minHeight: 60,
+    minHeight: 62,
     overflow: 'hidden',
     shadowColor: colors.primaryDark,
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.28,
-    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.26,
+    shadowRadius: 28,
   },
   buttonDisabled: {
     opacity: 0.85,
@@ -55,18 +56,28 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.99 }],
   },
   glow: {
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: 'rgba(255,255,255,0.16)',
     borderRadius: radius.pill,
-    height: 24,
-    left: 18,
+    height: 26,
+    left: 22,
     position: 'absolute',
-    right: 18,
-    top: 10,
+    right: 22,
+    top: 8,
   },
   label: {
-    color: colors.surface,
-    fontSize: 17,
-    fontWeight: '800',
-    letterSpacing: 0.6,
+    color: '#F7FBFF',
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: 0.9,
+  },
+  shine: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: radius.pill,
+    bottom: -12,
+    height: 38,
+    position: 'absolute',
+    right: -8,
+    transform: [{ rotate: '-14deg' }],
+    width: 140,
   },
 });

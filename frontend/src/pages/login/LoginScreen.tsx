@@ -17,7 +17,10 @@ import TextField, { FieldIconButton } from "@/src/components/common/TextField";
 import { API_BASE_URL } from "@/src/config/env";
 import { useAuth } from "@/src/hooks/use-auth";
 import AuthLayout from "@/src/layouts/AuthLayout";
+import { ApiError } from "@/src/services/api.client";
 import { login } from "@/src/services/auth.service";
+import { getUserRoadmap } from "@/src/services/user.service";
+import { isNoActiveLearningPathError } from "@/src/utils/api-errors";
 import { formatExpiry } from "@/src/utils/format";
 
 export default function LoginScreen() {
@@ -29,20 +32,20 @@ export default function LoginScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const emailError =
-    email.length > 0 && !email.includes("@") ? "Email khong hop le." : null;
+    email.length > 0 && !email.includes("@") ? "Email không hợp lệ." : null;
   const passwordError =
     password.length > 0 && password.trim().length === 0
-      ? "Mat khau khong duoc de trong."
+      ? "Mật khẩu không được để trống."
       : null;
 
   const handleLogin = async () => {
     if (email.trim().length === 0 || password.trim().length === 0) {
-      setErrorMessage("Vui long nhap day du email va mat khau.");
+      setErrorMessage("Vui lòng nhập đầy đủ email và mật khẩu.");
       return;
     }
 
     if (emailError || passwordError) {
-      setErrorMessage("Vui long kiem tra lai thong tin dang nhap.");
+      setErrorMessage("Vui lòng kiểm tra lại thông tin đăng nhập.");
       return;
     }
 
@@ -60,12 +63,34 @@ export default function LoginScreen() {
         userId: payload.data.user.id,
       });
       signIn(payload.data);
-      router.replace("/user/home");
+
+      try {
+        await getUserRoadmap(payload.data.accessToken);
+        router.replace("/user/home");
+      } catch (roadmapError) {
+        if (isNoActiveLearningPathError(roadmapError)) {
+          router.replace("/user/onboarding");
+          return;
+        }
+        router.replace("/user/home");
+      }
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Khong the dang nhap.";
-      console.log("[auth] login error", error);
-      setErrorMessage(message);
+      if (error instanceof ApiError) {
+        const raw = error.message.trim().toLowerCase();
+        if (
+          raw === "login failed" ||
+          raw.includes("bad credentials") ||
+          raw.includes("invalid")
+        ) {
+          setErrorMessage("Sai email hoặc mật khẩu.");
+        } else {
+          setErrorMessage(error.message);
+        }
+      } else if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Không thể đăng nhập.");
+      }
     } finally {
       setLoading(false);
     }
@@ -89,7 +114,7 @@ export default function LoginScreen() {
           </View>
 
           <Text style={styles.subtitle}>
-            Tiep tuc hanh trinh luyen thi TOEIC
+            Tiếp tục hành trình luyện thi TOEIC
           </Text>
         </View>
 
@@ -98,7 +123,7 @@ export default function LoginScreen() {
             autoCapitalize="none"
             error={emailError}
             keyboardType="email-address"
-            label="Dia chi email"
+            label="Địa chỉ email"
             leftIcon={
               <MaterialCommunityIcons
                 color={colors.textMuted}
@@ -107,14 +132,15 @@ export default function LoginScreen() {
               />
             }
             onChangeText={setEmail}
-            placeholder="Nhap email cua ban"
+            placeholder="Nhập email của bạn"
+            variant="light"
             value={email}
           />
 
           <TextField
             autoCapitalize="none"
             error={passwordError}
-            label="Mat khau"
+            label="Mật khẩu"
             leftIcon={
               <MaterialCommunityIcons
                 color={colors.textMuted}
@@ -123,7 +149,7 @@ export default function LoginScreen() {
               />
             }
             onChangeText={setPassword}
-            placeholder="Nhap mat khau cua ban"
+            placeholder="Nhập mật khẩu của bạn"
             rightSlot={
               <FieldIconButton
                 onPress={() => setShowPassword((current) => !current)}
@@ -136,14 +162,15 @@ export default function LoginScreen() {
               </FieldIconButton>
             }
             secureTextEntry={!showPassword}
+            variant="light"
             value={password}
           />
 
           <Pressable
-            onPress={() => Alert.alert("Thong bao", "Chuc nang dang cap nhat.")}
+            onPress={() => Alert.alert("Thông báo", "Chức năng đang cập nhật.")}
             style={styles.linkWrap}
           >
-            <Text style={styles.linkText}>Quen mat khau?</Text>
+            <Text style={styles.linkText}>Quên mật khẩu?</Text>
           </Pressable>
 
           {errorMessage ? (
@@ -152,7 +179,7 @@ export default function LoginScreen() {
           <Text style={styles.debugText}>API endpoint: {API_BASE_URL}</Text>
 
           <PrimaryButton
-            label="DANG NHAP"
+            label="ĐĂNG NHẬP"
             loading={loading}
             onPress={handleLogin}
           />
@@ -162,8 +189,8 @@ export default function LoginScreen() {
             style={styles.registerWrap}
           >
             <Text style={styles.registerText}>
-              Chua co tai khoan?{" "}
-              <Text style={styles.registerHighlight}>Dang ky ngay</Text>
+              Chưa có tài khoản?{" "}
+              <Text style={styles.registerHighlight}>Đăng ký ngay</Text>
             </Text>
           </Pressable>
 
@@ -175,12 +202,12 @@ export default function LoginScreen() {
                   name="checkmark-circle"
                   size={22}
                 />
-                <Text style={styles.successTitle}>Dang nhap thanh cong</Text>
+                <Text style={styles.successTitle}>Đăng nhập thành công</Text>
               </View>
               <Text style={styles.successLine}>{auth.user.fullName}</Text>
               <Text style={styles.successMeta}>{auth.user.email}</Text>
               <Text style={styles.successMeta}>
-                Token het han sau {formatExpiry(auth.expiresIn)}
+                Token hết hạn sau {formatExpiry(auth.expiresIn)}
               </Text>
             </View>
           ) : null}
@@ -192,26 +219,26 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   brandBadge: {
-    backgroundColor: colors.accentSoft,
+    backgroundColor: '#DCE8FB',
     borderRadius: radius.pill,
     marginBottom: spacing.md,
     paddingHorizontal: spacing.md,
     paddingVertical: 8,
   },
   brandText: {
-    color: colors.primaryDark,
+    color: '#274A83',
     fontSize: 14,
     fontWeight: "900",
     letterSpacing: 0.8,
   },
   debugText: {
-    color: colors.textMuted,
+    color: '#8A9CB6',
     fontSize: 12,
     marginBottom: spacing.md,
     textAlign: "center",
   },
   errorText: {
-    color: colors.danger,
+    color: '#C0392B',
     fontSize: 14,
     marginBottom: spacing.md,
     textAlign: "center",
@@ -223,7 +250,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   linkText: {
-    color: colors.primaryDark,
+    color: '#355D9A',
     fontSize: 14,
     fontWeight: "700",
   },
@@ -233,8 +260,8 @@ const styles = StyleSheet.create({
   },
   logoCircle: {
     alignItems: "center",
-    backgroundColor: colors.primarySoft,
-    borderColor: "rgba(255,255,255,0.75)",
+    backgroundColor: '#2A4675',
+    borderColor: "#E6EDF9",
     borderRadius: radius.pill,
     borderWidth: 8,
     height: 132,
@@ -242,7 +269,7 @@ const styles = StyleSheet.create({
     width: 132,
   },
   logoHalo: {
-    backgroundColor: "rgba(255,182,72,0.18)",
+    backgroundColor: "rgba(219, 201, 171, 0.35)",
     borderRadius: radius.pill,
     height: 170,
     position: "absolute",
@@ -255,11 +282,11 @@ const styles = StyleSheet.create({
     minHeight: 170,
   },
   registerHighlight: {
-    color: colors.primaryDark,
+    color: '#2E5DA3',
     fontWeight: "800",
   },
   registerText: {
-    color: colors.text,
+    color: '#5B6C86',
     fontSize: 15,
   },
   registerWrap: {
@@ -267,7 +294,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   subtitle: {
-    color: colors.textMuted,
+    color: '#6D7F98',
     fontSize: 15,
     lineHeight: 22,
     textAlign: "center",

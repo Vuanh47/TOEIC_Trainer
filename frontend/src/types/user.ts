@@ -1,5 +1,6 @@
 export type GoalPlan = {
   id: string;
+  targetScore: number;
   title: string;
   subtitle: string;
   description: string;

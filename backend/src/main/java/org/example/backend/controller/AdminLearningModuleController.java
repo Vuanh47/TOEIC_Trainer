@@ -58,10 +58,16 @@ public class AdminLearningModuleController {
         return ApiResponseUtil.success(response, SuccessCode.LEARNING_MODULE_UPDATED);
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/deactive/{id}")
     public ResponseEntity<ApiResponse<Void>> deactivateLearningModule(@PathVariable Long id) {
         adminLearningModuleService.deactivateLearningModule(id);
         return ApiResponseUtil.success(SuccessCode.LEARNING_MODULE_DEACTIVATED);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteLearningModule(@PathVariable Long id) {
+        adminLearningModuleService.deleteLearningModule(id);
+        return ApiResponseUtil.success(SuccessCode.LEARNING_MODULE_DELETED);
     }
 }
 
