@@ -4,6 +4,7 @@ spring:
     username: root
     password: root
 
+
   jpa:
     show-sql: true
     hibernate:
@@ -18,11 +19,11 @@ spring:
       file-size-threshold: 2KB
 
 jwt:
-  secret: "3b3529bc2a79f9035075bd915c1e9cf227d2c41043cf617ba6e66c816777b5ad"
+  secret: ${JWT_SECRET:3b3529bc2a79f9035075bd915c1e9cf227d2c41043cf617ba6e66c816777b5ad}
   expiration-ms: 86400000
 
 server:
-  port: 8080
+  port: 8082
   address: 0.0.0.0
   servlet:
     context-path: /api

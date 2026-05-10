@@ -10,6 +10,10 @@ public interface VideoLessonRepository extends JpaRepository<VideoLesson, Long> 
 
 	List<VideoLesson> findByModuleIdAndPublishedTrueOrderBySortOrderAsc(Long moduleId);
 
+	long countByModuleId(Long moduleId);
+
+	void deleteByModuleId(Long moduleId);
+
 	long countByModuleIdAndPublishedTrue(Long moduleId);
 
 	@Query("""

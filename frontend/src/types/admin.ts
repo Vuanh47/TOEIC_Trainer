@@ -39,8 +39,10 @@ export type AdminSectionKey =
   | 'paths'
   | 'milestones'
   | 'modules'
+  | 'grammars'
   | 'content'
   | 'questions'
+  | 'tests'
   | 'permissions';
 
 export type AdminVideoLesson = {

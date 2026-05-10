@@ -8,7 +8,17 @@ import org.example.backend.entity.LearningModule;
 import org.example.backend.enums.ErrorCode;
 import org.example.backend.exception.AppException;
 import org.example.backend.mapper.LearningModuleMapper;
+import org.example.backend.repository.FlashcardRepository;
 import org.example.backend.repository.LearningModuleRepository;
+import org.example.backend.repository.MilestoneModuleRepository;
+import org.example.backend.repository.PracticeSetRepository;
+import org.example.backend.repository.PracticeSetQuestionRepository;
+import org.example.backend.repository.UserModuleProgressRepository;
+import org.example.backend.repository.UserPracticeAnswerRepository;
+import org.example.backend.repository.UserPracticeAttemptRepository;
+import org.example.backend.repository.UserVideoProgressRepository;
+import org.example.backend.repository.VideoNoteRepository;
+import org.example.backend.repository.VideoLessonRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +30,16 @@ public class AdminLearningModuleService {
 
     private final LearningModuleRepository learningModuleRepository;
     private final LearningModuleMapper learningModuleMapper;
+    private final FlashcardRepository flashcardRepository;
+    private final MilestoneModuleRepository milestoneModuleRepository;
+    private final PracticeSetRepository practiceSetRepository;
+    private final PracticeSetQuestionRepository practiceSetQuestionRepository;
+    private final UserModuleProgressRepository userModuleProgressRepository;
+    private final UserPracticeAnswerRepository userPracticeAnswerRepository;
+    private final UserPracticeAttemptRepository userPracticeAttemptRepository;
+    private final UserVideoProgressRepository userVideoProgressRepository;
+    private final VideoNoteRepository videoNoteRepository;
+    private final VideoLessonRepository videoLessonRepository;
 
     @Transactional(readOnly = true)
     public List<LearningModuleResponse> getAllLearningModules() {
@@ -114,6 +134,22 @@ public class AdminLearningModuleService {
         LearningModule learningModule = findLearningModule(id);
         learningModule.setActive(false);
         learningModuleRepository.save(learningModule);
+    }
+
+    @Transactional
+    public void deleteLearningModule(Long id) {
+        LearningModule learningModule = findLearningModule(id);
+        milestoneModuleRepository.deleteByModuleId(id);
+        userModuleProgressRepository.deleteByModuleId(id);
+        flashcardRepository.deleteByModuleId(id);
+        userVideoProgressRepository.deleteByModuleId(id);
+        videoNoteRepository.deleteByModuleId(id);
+        videoLessonRepository.deleteByModuleId(id);
+        userPracticeAnswerRepository.deleteByModuleId(id);
+        userPracticeAttemptRepository.deleteByModuleId(id);
+        practiceSetQuestionRepository.deleteByModuleId(id);
+        practiceSetRepository.deleteByModuleId(id);
+        learningModuleRepository.delete(learningModule);
     }
 
     private LearningModule findLearningModule(Long id) {

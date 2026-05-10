@@ -51,6 +51,7 @@ public enum SuccessCode {
     LEARNING_MODULE_CREATED(1057, "Learning module created successfully", HttpStatus.CREATED),
     LEARNING_MODULE_UPDATED(1058, "Learning module updated successfully", HttpStatus.OK),
     LEARNING_MODULE_DEACTIVATED(1059, "Learning module deactivated successfully", HttpStatus.OK),
+    LEARNING_MODULE_DELETED(1125, "Learning module deleted successfully", HttpStatus.OK),
     LEARNING_MODULE_LISTED(1084, "Learning modules listed successfully", HttpStatus.OK),
     LEARNING_MODULE_GET(1085, "Learning module retrieved successfully", HttpStatus.OK),
     LEARNING_PATH_ASSIGNED(1043, "Learning path assigned successfully", HttpStatus.OK),

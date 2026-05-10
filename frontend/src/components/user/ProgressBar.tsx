@@ -1,12 +1,14 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors, radius, spacing } from "@/src/assets/styles/theme";
+import { colors, radius, spacing } from "@/src/assets/styles/user-theme";
 
 type ProgressBarProps = {
   label?: string;
   value: number;
   rightLabel?: string;
   accentColor?: string;
+  labelColor?: string;
+  rightLabelColor?: string;
 };
 
 export default function ProgressBar({
@@ -14,13 +16,15 @@ export default function ProgressBar({
   value,
   rightLabel,
   accentColor = colors.primary,
+  labelColor = colors.text,
+  rightLabelColor = colors.primaryDark,
 }: ProgressBarProps) {
   return (
     <View>
       {label || rightLabel ? (
         <View style={styles.labelRow}>
-          <Text style={styles.label}>{label}</Text>
-          {rightLabel ? <Text style={styles.rightLabel}>{rightLabel}</Text> : null}
+          <Text style={[styles.label, { color: labelColor }]}>{label}</Text>
+          {rightLabel ? <Text style={[styles.rightLabel, { color: rightLabelColor }]}>{rightLabel}</Text> : null}
         </View>
       ) : null}
       <View style={styles.track}>
@@ -30,6 +34,7 @@ export default function ProgressBar({
             { backgroundColor: accentColor, width: `${Math.max(0, Math.min(100, value))}%` },
           ]}
         />
+        <View style={styles.sheen} />
       </View>
     </View>
   );
@@ -56,10 +61,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "800",
   },
-  track: {
-    backgroundColor: "#E7EAF6",
+  sheen: {
+    backgroundColor: "rgba(255,255,255,0.42)",
     borderRadius: radius.pill,
-    height: 10,
+    height: "100%",
+    position: "absolute",
+    right: 0,
+    top: 0,
+    width: "28%",
+  },
+  track: {
+    backgroundColor: "#E1D8C6",
+    borderRadius: radius.pill,
+    height: 12,
     overflow: "hidden",
   },
 });

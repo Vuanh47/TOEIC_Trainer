@@ -103,7 +103,8 @@ public enum ErrorCode {
     INVALID_GRAMMAR_DATA(7032, "Invalid grammar data", HttpStatus.BAD_REQUEST),
     GRAMMAR_TITLE_EXISTED(7033, "Grammar title already exists", HttpStatus.BAD_REQUEST),
     GRAMMAR_ALREADY_FAVORITED(7034, "Grammar already added to favorites", HttpStatus.BAD_REQUEST),
-    GRAMMAR_NOT_FAVORITED(7035, "Grammar is not in your favorites", HttpStatus.BAD_REQUEST);
+    GRAMMAR_NOT_FAVORITED(7035, "Grammar is not in your favorites", HttpStatus.BAD_REQUEST),
+    LEARNING_MODULE_IN_USE(7036, "Cannot delete learning module because it is still linked to other data", HttpStatus.BAD_REQUEST);
 
     int code;
     String message;

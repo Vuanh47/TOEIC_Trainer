@@ -8,4 +8,8 @@ public interface MilestoneModuleRepository extends JpaRepository<MilestoneModule
 	List<MilestoneModule> findByMilestoneIdOrderBySortOrderAsc(Long milestoneId);
 
 	boolean existsByMilestoneIdAndModuleId(Long milestoneId, Long moduleId);
+
+	boolean existsByModuleId(Long moduleId);
+
+	void deleteByModuleId(Long moduleId);
 }

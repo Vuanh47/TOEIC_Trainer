@@ -37,21 +37,21 @@ export default function RegisterScreen() {
     () => ({
       email:
         form.email.length > 0 && !form.email.includes("@")
-          ? "Email khong hop le."
+          ? "Email không hợp lệ."
           : null,
       fullName:
         form.fullName.trim().length > 0 && form.fullName.trim().length < 2
-          ? "Ho ten qua ngan."
+          ? "Họ tên quá ngắn."
           : null,
       password:
         form.password.length > 0 && form.password.length < 8
-          ? "Mat khau phai co it nhat 8 ky tu."
+          ? "Mật khẩu phải có ít nhất 8 ký tự."
           : null,
       targetScore:
         Number.isNaN(form.targetScore) ||
         form.targetScore < 100 ||
         form.targetScore > 990
-          ? "Target score phai trong khoang 100 - 990."
+          ? "Điểm mục tiêu phải trong khoảng 100 - 990."
           : null,
     }),
     [form],
@@ -71,7 +71,7 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
     if (hasError) {
-      setErrorMessage("Vui long kiem tra lai thong tin dang ky.");
+      setErrorMessage("Vui lòng kiểm tra lại thông tin đăng ký.");
       return;
     }
 
@@ -82,13 +82,13 @@ export default function RegisterScreen() {
       const response = await register(form);
 
       Alert.alert(
-        "Dang ky thanh cong",
-        `${response.data.fullName} da duoc tao tai khoan.`,
-        [{ text: "Dang nhap", onPress: () => router.replace("/") }],
+        "Đăng ký thành công",
+        `${response.data.fullName} đã được tạo tài khoản.`,
+        [{ text: "Đăng nhập", onPress: () => router.replace("/") }],
       );
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Khong the dang ky.";
+        error instanceof Error ? error.message : "Không thể đăng ký.";
       setErrorMessage(message);
     } finally {
       setLoading(false);
@@ -107,14 +107,14 @@ export default function RegisterScreen() {
             </View>
             <Text style={styles.brandText}>TOEIC_trainer</Text>
           </View>
-          <Text style={styles.subtitle}>Tiep tuc hanh trinh luyen thi TOEIC</Text>
+          <Text style={styles.subtitle}>Tiếp tục hành trình luyện thi TOEIC</Text>
                
         </View>
 
         <View style={styles.form}>
           <TextField
             error={errors.fullName}
-            label="Ho va ten"
+            label="Họ và tên"
             leftIcon={
               <Ionicons
                 color={colors.textMuted}
@@ -123,7 +123,8 @@ export default function RegisterScreen() {
               />
             }
             onChangeText={(value) => updateField("fullName", value)}
-            placeholder="Nhap ho ten cua ban"
+            placeholder="Nhập họ tên của bạn"
+            variant="light"
             value={form.fullName}
           />
 
@@ -131,7 +132,7 @@ export default function RegisterScreen() {
             autoCapitalize="none"
             error={errors.email}
             keyboardType="email-address"
-            label="Dia chi email"
+            label="Địa chỉ email"
             leftIcon={
               <MaterialCommunityIcons
                 color={colors.textMuted}
@@ -140,14 +141,15 @@ export default function RegisterScreen() {
               />
             }
             onChangeText={(value) => updateField("email", value)}
-            placeholder="Nhap email dang ky"
+            placeholder="Nhập email đăng ký"
+            variant="light"
             value={form.email}
           />
 
           <TextField
             autoCapitalize="none"
             error={errors.password}
-            label="Mat khau"
+            label="Mật khẩu"
             leftIcon={
               <MaterialCommunityIcons
                 color={colors.textMuted}
@@ -156,7 +158,7 @@ export default function RegisterScreen() {
               />
             }
             onChangeText={(value) => updateField("password", value)}
-            placeholder="Tao mat khau it nhat 8 ky tu"
+            placeholder="Tạo mật khẩu ít nhất 8 ký tự"
             rightSlot={
               <FieldIconButton
                 onPress={() => setShowPassword((current) => !current)}
@@ -169,11 +171,12 @@ export default function RegisterScreen() {
               </FieldIconButton>
             }
             secureTextEntry={!showPassword}
+            variant="light"
             value={form.password}
           />
 
           <View style={styles.fieldBlock}>
-            <Text style={styles.fieldLabel}>Trinh do hien tai</Text>
+            <Text style={styles.fieldLabel}>Trình độ hiện tại</Text>
             <View style={styles.levelGrid}>
               {LEVEL_OPTIONS.map((level) => {
                 const selected = form.currentLevel === level;
@@ -203,7 +206,7 @@ export default function RegisterScreen() {
 
           <TextField
             error={errors.targetScore}
-            label="Muc diem muc tieu"
+            label="Mục điểm mục tiêu"
             leftIcon={
               <MaterialCommunityIcons
                 color={colors.textMuted}
@@ -217,7 +220,8 @@ export default function RegisterScreen() {
                 Number(value.replace(/[^0-9]/g, "")) || 0,
               )
             }
-            placeholder="Nhap muc diem mong muon"
+            placeholder="Nhập mức điểm mong muốn"
+            variant="light"
             value={form.targetScore ? String(form.targetScore) : ""}
           />
 
@@ -226,15 +230,15 @@ export default function RegisterScreen() {
           ) : null}
 
           <PrimaryButton
-            label="TAO TAI KHOAN"
+            label="TẠO TÀI KHOẢN"
             loading={loading}
             onPress={handleRegister}
           />
 
           <Pressable onPress={() => router.back()} style={styles.footerLink}>
             <Text style={styles.footerText}>
-              Da co tai khoan?{" "}
-              <Text style={styles.footerHighlight}>Dang nhap</Text>
+              Đã có tài khoản?{" "}
+              <Text style={styles.footerHighlight}>Đăng nhập</Text>
             </Text>
           </Pressable>
         </View>
@@ -246,7 +250,7 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   brandIcon: {
     alignItems: "center",
-    backgroundColor: colors.accentSoft,
+    backgroundColor: '#DCE8FB',
     borderRadius: radius.pill,
     height: 28,
     justifyContent: "center",
@@ -259,13 +263,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   brandText: {
-    color: colors.primaryDark,
+    color: '#274A83',
     fontSize: 15,
     fontWeight: "900",
     letterSpacing: 0.6,
   },
   errorText: {
-    color: colors.danger,
+    color: '#C0392B',
     fontSize: 14,
     marginBottom: spacing.md,
     textAlign: "center",
@@ -274,13 +278,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   fieldLabel: {
-    color: colors.text,
+    color: '#43546F',
     fontSize: 15,
     fontWeight: "700",
     marginBottom: spacing.xs,
   },
   footerHighlight: {
-    color: colors.primaryDark,
+    color: '#2E5DA3',
     fontWeight: "800",
   },
   footerLink: {
@@ -288,7 +292,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   footerText: {
-    color: colors.text,
+    color: '#5B6C86',
     fontSize: 15,
   },
   form: {
@@ -299,16 +303,16 @@ const styles = StyleSheet.create({
   },
   levelChip: {
     alignItems: "center",
-    backgroundColor: colors.surfaceAlt,
-    borderColor: colors.border,
+    backgroundColor: '#F4F8FF',
+    borderColor: '#D7E2F2',
     borderRadius: radius.pill,
     borderWidth: 1,
     minHeight: 44,
     paddingHorizontal: spacing.md,
   },
   levelChipActive: {
-    backgroundColor: colors.primaryDark,
-    borderColor: colors.primaryDark,
+    backgroundColor: '#2E5DA3',
+    borderColor: '#2E5DA3',
   },
   levelGrid: {
     flexDirection: "row",
@@ -316,16 +320,16 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   levelText: {
-    color: colors.text,
+    color: '#36527D',
     fontSize: 13,
     fontWeight: "800",
     lineHeight: 22,
   },
   levelTextActive: {
-    color: colors.surface,
+    color: '#F8FBFF',
   },
   subtitle: {
-    color: colors.textMuted,
+    color: '#6D7F98',
     fontSize: 15,
     lineHeight: 22,
     textAlign: "center",

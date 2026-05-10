@@ -9,6 +9,9 @@ public interface PracticeSetRepository extends JpaRepository<PracticeSet, Long> 
 
 	List<PracticeSet> findByModuleIdAndPublishedTrueOrderByCreatedAtDesc(Long moduleId);
 
+	long countByModuleId(Long moduleId);
+
+	void deleteByModuleId(Long moduleId);
 
 	java.util.Optional<PracticeSet> findByIdAndPublishedTrue(Long id);
 

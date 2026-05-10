@@ -1,251 +1,692 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, radius, spacing } from "@/src/assets/styles/theme";
+import { colors, radius, spacing } from "@/src/assets/styles/user-theme";
 import AppHeader, { AvatarBadge } from "@/src/components/user/AppHeader";
 import ProgressBar from "@/src/components/user/ProgressBar";
+import SurfaceCard from "@/src/components/user/SurfaceCard";
 import UserScreen from "@/src/components/user/UserScreen";
-import { lessonUnits } from "@/src/pages/user/mock-data";
+import { useAuth } from "@/src/hooks/use-auth";
+import { getUserRoadmap } from "@/src/services/user.service";
+import { UserRoadmap, UserRoadmapModuleItem } from "@/src/types/user-api";
+import { isNoActiveLearningPathError } from "@/src/utils/api-errors";
 import { pushRoute } from "@/src/utils/navigation";
 
+type ModuleNode = {
+  ctaLabel?: string;
+  isCelebration?: boolean;
+  isCompleted: boolean;
+  isCurrent: boolean;
+  milestoneTitle: string;
+  module: UserRoadmapModuleItem;
+};
+
+function statusLabel(status?: string) {
+  if (status === "COMPLETED") return "Hoàn thành";
+  if (status === "IN_PROGRESS") return "Đang học";
+  if (status === "LOCKED") return "Đang khóa";
+  return "Sẵn sàng";
+}
+
+function compactType(type?: string) {
+  if (!type) return "Module";
+  if (type === "VOCABULARY") return "Vocab";
+  if (type === "GRAMMAR") return "Grammar";
+  if (type === "MILESTONE") return "Milestone";
+  return type.replaceAll("_", " ");
+}
+
 export default function PracticeScreen() {
+  const { auth, isHydrated } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [roadmap, setRoadmap] = useState<UserRoadmap | null>(null);
+
+  const loadRoadmap = useCallback(async () => {
+    if (!auth.accessToken) return;
+
+    try {
+      setLoading(true);
+      setErrorMessage(null);
+      const payload = await getUserRoadmap(auth.accessToken);
+      setRoadmap(payload.data ?? null);
+    } catch (error) {
+      setRoadmap(null);
+      if (isNoActiveLearningPathError(error)) {
+        setErrorMessage(null);
+        return;
+      }
+      setErrorMessage(error instanceof Error ? error.message : "Không thể tải roadmap practice.");
+    } finally {
+      setLoading(false);
+    }
+  }, [auth.accessToken]);
+
+  useEffect(() => {
+    if (!isHydrated || !auth.accessToken) return;
+    void loadRoadmap();
+  }, [auth.accessToken, isHydrated, loadRoadmap]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!isHydrated || !auth.accessToken) return;
+      void loadRoadmap();
+    }, [auth.accessToken, isHydrated, loadRoadmap]),
+  );
+
+  const moduleNodes = useMemo<ModuleNode[]>(() => {
+    if (!roadmap) return [];
+
+    const items = roadmap.milestones
+      .flatMap((milestone) =>
+        milestone.modules.map((module) => ({
+          milestoneTitle: milestone.title,
+          module,
+        })),
+      )
+      .sort((a, b) => a.module.sortOrder - b.module.sortOrder)
+      .map(({ milestoneTitle, module }) => ({
+        isCompleted: module.progressStatus === "COMPLETED",
+        isCurrent:
+          module.moduleId === roadmap.currentModuleId || module.progressStatus === "IN_PROGRESS",
+        milestoneTitle,
+        module,
+      }));
+
+    if (roadmap.status !== "COMPLETED" || items.length === 0) return items;
+
+    const lastSortOrder = items[items.length - 1]?.module.sortOrder ?? items.length;
+
+    return [
+      ...items,
+      {
+        ctaLabel: "Mở màn chúc mừng",
+        isCelebration: true,
+        isCompleted: true,
+        isCurrent: true,
+        milestoneTitle: "Hoàn tất lộ trình",
+        module: {
+          description: "Bạn đã hoàn thành toàn bộ roadmap. Xem lại tổng kết và màn chúc mừng cuối khóa.",
+          difficultyLevel: "FINISH",
+          estimatedMinutes: 3,
+          flashcardCount: 0,
+          moduleId: -1,
+          moduleType: "MILESTONE",
+          practiceSetCount: 0,
+          progressPercent: 100,
+          progressStatus: "COMPLETED",
+          required: true,
+          sortOrder: lastSortOrder + 1,
+          title: "Chốt hạ mục tiêu",
+          unlockCondition: "Hoàn thành toàn bộ roadmap",
+          videoLessonCount: 0,
+        },
+      },
+    ];
+  }, [roadmap]);
+
+  const realModules = moduleNodes.filter((item) => !item.isCelebration);
+  const currentNode =
+    moduleNodes.find((item) => item.isCurrent && !item.isCelebration) ??
+    realModules[0] ??
+    moduleNodes[0] ??
+    null;
+  const currentModule = currentNode?.module ?? null;
+  const completedCount = realModules.filter((item) => item.isCompleted).length;
+  const completionRatio = `${completedCount}/${realModules.length || 0}`;
+  const progressPercent = Math.round(roadmap?.progressPercent ?? 0);
+
+  const openModule = (moduleId: number) => {
+    if (moduleId < 0) {
+      pushRoute("/user/path-complete");
+      return;
+    }
+    pushRoute(`/user/roadmap?moduleId=${moduleId}`);
+  };
+
+  const openCurrentPractice = () => {
+    if (roadmap?.status === "COMPLETED") {
+      pushRoute("/user/path-complete");
+      return;
+    }
+    if (!currentModule) return;
+    pushRoute(`/user/roadmap?moduleId=${currentModule.moduleId}&focus=practice`);
+  };
+
   return (
     <UserScreen>
       <AppHeader
-        rightSlot={<AvatarBadge label="A" />}
-        title="Academic Concierge"
+        rightSlot={<AvatarBadge label={(auth.user?.fullName ?? "A").charAt(0).toUpperCase()} />}
+        subtitle="Roadmap lộ trình"
+        title="TOEIC Trainer"
       />
 
-      <Text style={styles.levelLabel}>LEVEL 4: BUSINESS MASTERY</Text>
-      <Text style={styles.title}>TOEIC Listening & Reading</Text>
+      <SurfaceCard style={styles.heroCard}>
+        <View style={styles.heroOrb} />
+        <View style={styles.heroHeaderRow}>
+          <View style={styles.heroCopy}>
+            <Text style={styles.heroEyebrow}>Lộ trình đang chọn</Text>
+            <Text numberOfLines={1} style={styles.title}>
+              {roadmap?.learningPathTitle ?? "Chưa chọn lộ trình học"}
+            </Text>
+          </View>
+          <View style={styles.heroScorePill}>
+            <Text style={styles.heroScoreValue}>{roadmap?.targetScore ?? auth.user?.targetScore ?? "--"}+</Text>
+          </View>
+        </View>
 
-      <View style={styles.progressShell}>
+        <Text style={styles.subtitle}>
+          {roadmap?.status === "COMPLETED"
+            ? "Lộ trình này đã hoàn thành. Bạn vẫn có thể xem lại đầy đủ module và mở màn chúc mừng cuối khóa."
+            : "Theo dõi module hiện tại, làm practice đúng thứ tự và giữ tiến độ học mỗi ngày."}
+        </Text>
+
+        <View style={styles.currentPathBlock}>
+          <View style={styles.currentPathTopRow}>
+            <Text style={styles.currentPathLabel}>{roadmap?.learningPathCode ?? "ROADMAP"}</Text>
+            <Text numberOfLines={1} style={styles.currentPathMeta}>
+              {currentNode?.milestoneTitle ?? "Chưa có chặng"}
+            </Text>
+          </View>
+          <Text numberOfLines={1} style={styles.currentPathTitle}>
+            {currentModule?.title ?? "Chưa có module hiện tại"}
+          </Text>
+        </View>
+
+        <View style={styles.summaryGrid}>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryValue}>{completionRatio}</Text>
+            <Text style={styles.summaryLabel}>Đã xong</Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Text numberOfLines={1} style={styles.summaryValueCompact}>
+              {statusLabel(roadmap?.status)}
+            </Text>
+            <Text style={styles.summaryLabel}>Trạng thái</Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Text numberOfLines={1} style={styles.summaryValueCompact}>
+              {compactType(currentModule?.moduleType)}
+            </Text>
+            <Text style={styles.summaryLabel}>Loại</Text>
+          </View>
+        </View>
+
         <ProgressBar
-          label="COURSE PROGRESS"
-          rightLabel="45%"
-          value={45}
+          accentColor="#F0A33A"
+          label="Tiến độ toàn lộ trình"
+          rightLabel={`${progressPercent}%`}
+          value={progressPercent}
         />
-      </View>
+      </SurfaceCard>
 
-      <View style={styles.timeline}>
-        <View style={styles.dashedLine} />
-        {lessonUnits.map((unit, index) => {
+      <Pressable
+        disabled={!currentModule}
+        onPress={openCurrentPractice}
+        style={[styles.primaryButton, !currentModule ? styles.primaryButtonDisabled : null]}
+      >
+        <Ionicons color={colors.surface} name="play-circle-outline" size={17} />
+        <Text style={styles.primaryButtonText}>
+          {roadmap?.status === "COMPLETED" ? "Xem màn chúc mừng" : "Tiếp tục module hiện tại"}
+        </Text>
+      </Pressable>
+
+      {loading ? (
+        <View style={styles.feedbackRow}>
+          <ActivityIndicator color={colors.primaryDark} />
+          <Text style={styles.feedbackText}>Đang đồng bộ roadmap từ backend...</Text>
+        </View>
+      ) : null}
+
+      {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+
+      {!loading && !errorMessage && !roadmap ? (
+        <SurfaceCard style={styles.emptyStateCard}>
+          <Text style={styles.emptyStateTitle}>Bạn chưa có roadmap nào</Text>
+          <Text style={styles.emptyText}>Tài khoản mới cần chọn lộ trình trước khi vào practice.</Text>
+          <Pressable onPress={() => pushRoute("/user/onboarding")} style={styles.secondaryCta}>
+            <Text style={styles.secondaryCtaText}>Bắt đầu onboarding</Text>
+          </Pressable>
+        </SurfaceCard>
+      ) : null}
+
+      {!loading && !errorMessage && roadmap && moduleNodes.length === 0 ? (
+        <SurfaceCard>
+          <Text style={styles.emptyText}>Chưa có module nào trong lộ trình hiện tại.</Text>
+        </SurfaceCard>
+      ) : null}
+
+      <View style={styles.treeWrap}>
+        <View style={styles.centerLine} />
+        {moduleNodes.map((item, index) => {
           const alignRight = index % 2 === 1;
-          const isCurrent = unit.status === "current";
-          const isDone = unit.status === "done";
-          const isLocked = unit.status === "locked";
+          const isCurrent = item.isCurrent;
+          const isDone = item.isCompleted;
 
           return (
             <View
-              key={unit.id}
-              style={[
-                styles.timelineItem,
-                alignRight ? styles.timelineItemRight : styles.timelineItemLeft,
-              ]}
+              key={item.module.moduleId}
+              style={[styles.branchRow, alignRight ? styles.branchRowRight : styles.branchRowLeft]}
             >
-              <Pressable
-                onPress={() =>
-                  isLocked
-                    ? undefined
-                    : pushRoute(isCurrent ? "/user/roadmap" : "/user/grammar")
-                }
-                style={[
-                  styles.node,
-                  isDone ? styles.nodeDone : null,
-                  isCurrent ? styles.nodeCurrent : null,
-                  isLocked ? styles.nodeLocked : null,
-                ]}
-              >
-                <Ionicons
-                  color={isCurrent || isDone ? colors.primaryDark : "#ACB1C0"}
-                  name={
-                    isDone
-                      ? "checkmark"
-                      : isCurrent
-                        ? "school-outline"
-                        : "lock-closed-outline"
-                  }
-                  size={28}
-                />
-              </Pressable>
+              <View style={[styles.connector, alignRight ? styles.connectorRight : styles.connectorLeft]} />
 
-              {isCurrent ? (
-                <View style={styles.startBubble}>
-                  <Text style={styles.startBubbleText}>START: VERB TENSES</Text>
-                </View>
-              ) : null}
-
-              <Text
-                style={[
-                  styles.unitTitle,
-                  isLocked ? styles.unitTitleLocked : null,
-                ]}
-              >
-                {unit.title}
-              </Text>
-
-              {isCurrent ? (
-                <View style={styles.unitProgressWrap}>
-                  <ProgressBar
-                    accentColor="#24963F"
-                    rightLabel={`${unit.progress}%`}
-                    value={unit.progress}
+              <View style={[styles.nodeWrap, alignRight ? styles.nodeWrapRight : styles.nodeWrapLeft]}>
+                <View
+                  style={[
+                    styles.nodeBadge,
+                    isDone ? styles.nodeBadgeDone : null,
+                    isCurrent ? styles.nodeBadgeCurrent : null,
+                    item.isCelebration ? styles.nodeBadgeCelebration : null,
+                  ]}
+                >
+                  <Ionicons
+                    color={isDone || isCurrent ? colors.surface : colors.primaryDark}
+                    name={
+                      item.isCelebration
+                        ? "trophy-outline"
+                        : isDone
+                          ? "checkmark-outline"
+                          : isCurrent
+                            ? "sparkles-outline"
+                            : "book-outline"
+                    }
+                    size={17}
                   />
                 </View>
-              ) : null}
+
+                <Pressable
+                  onPress={() => openModule(item.module.moduleId)}
+                  style={[styles.roadmapCard, item.isCelebration ? styles.roadmapCardCelebration : null]}
+                >
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.moduleStep}>
+                      {item.isCelebration ? "Chặng cuối đã mở" : `Module ${index + 1}`}
+                    </Text>
+                    {isDone ? <Text style={styles.doneTag}>Hoàn thành</Text> : null}
+                    {isCurrent && !isDone ? <Text style={styles.currentTag}>Đang học</Text> : null}
+                  </View>
+                  <Text style={styles.moduleTitle}>{item.module.title}</Text>
+                  <Text numberOfLines={2} style={styles.moduleDescription}>
+                    {item.module.description ?? `Milestone: ${item.milestoneTitle}`}
+                  </Text>
+                  {item.isCelebration ? (
+                    <Text style={styles.celebrationMeta}>
+                      Bấm để xem màn hoàn thành khóa học và tổng kết hành trình của bạn.
+                    </Text>
+                  ) : (
+                    <View style={styles.moduleMetaRow}>
+                      <Text style={styles.moduleMeta}>{item.module.videoLessonCount} video</Text>
+                      <Text style={styles.moduleMeta}>{item.module.flashcardCount} vocab</Text>
+                      <Text style={styles.moduleMeta}>{item.module.practiceSetCount} practice</Text>
+                    </View>
+                  )}
+                  <ProgressBar
+                    accentColor={item.isCelebration ? "#F0A33A" : isDone ? colors.success : colors.primary}
+                    rightLabel={`${Math.round(item.module.progressPercent)}%`}
+                    value={item.module.progressPercent}
+                  />
+                  {item.ctaLabel ? <Text style={styles.celebrationCta}>{item.ctaLabel}</Text> : null}
+                </Pressable>
+              </View>
             </View>
           );
         })}
-
-        <View style={styles.rewardWrap}>
-          <View style={styles.rewardCircle}>
-            <Ionicons color="#BCC0CF" name="gift-outline" size={30} />
-          </View>
-          <Text style={styles.rewardLabel}>SECTION EXAM REWARD</Text>
-        </View>
       </View>
-
-      <Pressable onPress={() => pushRoute("/user/grammar")} style={styles.energyButton}>
-        <Ionicons color={colors.text} name="flash" size={22} />
-      </Pressable>
     </UserScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  dashedLine: {
-    alignSelf: "center",
-    borderColor: "#D9DEEC",
-    borderStyle: "dashed",
-    borderWidth: 2,
-    bottom: 0,
-    position: "absolute",
-    top: 0,
+  branchRow: {
+    marginBottom: spacing.lg,
+    minHeight: 178,
+    position: "relative",
+    width: "100%",
   },
-  energyButton: {
+  branchRowLeft: {
+    alignItems: "flex-start",
+  },
+  branchRowRight: {
+    alignItems: "flex-end",
+  },
+  cardHeader: {
     alignItems: "center",
-    alignSelf: "flex-end",
-    backgroundColor: "#59FF77",
-    borderRadius: radius.md,
-    height: 56,
-    justifyContent: "center",
-    marginTop: spacing.lg,
-    width: 56,
-  },
-  levelLabel: {
-    color: "#1A7C2B",
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: 1.8,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xs,
     marginBottom: spacing.sm,
   },
-  node: {
-    alignItems: "center",
-    backgroundColor: colors.surface,
-    borderRadius: radius.pill,
-    height: 84,
-    justifyContent: "center",
-    width: 84,
+  celebrationCta: {
+    color: "#A25B00",
+    fontSize: 12,
+    fontWeight: "900",
+    marginTop: spacing.xs,
   },
-  nodeCurrent: {
-    backgroundColor: colors.primary,
-    borderColor: colors.surface,
-    borderWidth: 4,
-    shadowColor: colors.primaryDark,
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
+  celebrationMeta: {
+    color: "#6B4A17",
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: spacing.xs,
   },
-  nodeDone: {
-    backgroundColor: "#9AF78B",
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
+  centerLine: {
+    backgroundColor: "#C7BFAE",
+    bottom: 0,
+    left: "50%",
+    marginLeft: -1,
+    position: "absolute",
+    top: 8,
+    width: 2,
   },
-  nodeLocked: {
-    backgroundColor: "#EFEFF7",
+  connector: {
+    borderColor: "#C7BFAE",
+    borderTopWidth: 2,
+    height: 54,
+    position: "absolute",
+    top: 20,
+    width: 42,
   },
-  progressShell: {
-    backgroundColor: "rgba(255,255,255,0.88)",
+  connectorLeft: {
+    borderLeftWidth: 2,
+    borderTopLeftRadius: 26,
+    left: "50%",
+  },
+  connectorRight: {
+    borderRightWidth: 2,
+    borderTopRightRadius: 26,
+    right: "50%",
+  },
+  currentPathBlock: {
+    backgroundColor: "#FFFCF4",
+    borderColor: "#E1D4B8",
     borderRadius: radius.lg,
-    marginBottom: spacing.xl,
+    borderWidth: 1,
+    marginBottom: spacing.md,
     padding: spacing.md,
   },
-  rewardCircle: {
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.6)",
-    borderColor: "#DADFF1",
-    borderRadius: radius.pill,
-    borderStyle: "dashed",
-    borderWidth: 2,
-    height: 120,
-    justifyContent: "center",
-    width: 120,
+  currentPathLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 1,
+    textTransform: "uppercase",
   },
-  rewardLabel: {
+  currentPathMeta: {
+    color: colors.textMuted,
+    flex: 1,
+    fontSize: 12,
+    textAlign: "right",
+  },
+  currentPathTitle: {
+    color: colors.primaryDark,
+    fontSize: 18,
+    fontWeight: "900",
+    marginTop: 8,
+  },
+  currentPathTopRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+    justifyContent: "space-between",
+  },
+  currentTag: {
+    backgroundColor: colors.primaryDark,
+    borderRadius: radius.pill,
+    color: colors.surface,
+    fontSize: 11,
+    fontWeight: "900",
+    overflow: "hidden",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  doneTag: {
+    backgroundColor: "#D7F5E3",
+    borderRadius: radius.pill,
+    color: colors.success,
+    fontSize: 11,
+    fontWeight: "900",
+    overflow: "hidden",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  emptyStateCard: {
+    marginBottom: spacing.md,
+  },
+  emptyStateTitle: {
+    color: colors.primaryDark,
+    fontSize: 16,
+    fontWeight: "900",
+    marginBottom: spacing.xs,
+    textAlign: "center",
+  },
+  emptyText: {
+    color: colors.textMuted,
+    fontSize: 14,
+    textAlign: "center",
+  },
+  errorText: {
+    backgroundColor: "rgba(201,87,87,0.1)",
+    borderColor: "rgba(201,87,87,0.24)",
+    borderRadius: radius.md,
+    borderWidth: 1,
+    color: colors.danger,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  feedbackRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  feedbackText: {
+    color: colors.textMuted,
+    fontSize: 14,
+  },
+  heroCard: {
+    backgroundColor: "#F1F8FB",
+    borderColor: "#D7DCCE",
+    marginBottom: spacing.md,
+    overflow: "hidden",
+    padding: spacing.lg,
+  },
+  heroCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  heroEyebrow: {
+    color: colors.accent,
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 1.5,
+    marginBottom: 8,
+    textTransform: "uppercase",
+  },
+  heroHeaderRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  heroOrb: {
+    backgroundColor: "rgba(15,107,98,0.08)",
+    borderRadius: 120,
+    height: 140,
+    position: "absolute",
+    right: -34,
+    top: -24,
+    width: 140,
+  },
+  heroScorePill: {
+    alignItems: "center",
+    backgroundColor: colors.primaryDark,
+    borderRadius: radius.pill,
+    justifyContent: "center",
+    minWidth: 84,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 14,
+  },
+  heroScoreValue: {
+    color: colors.surface,
+    fontSize: 22,
+    fontWeight: "900",
+  },
+  moduleDescription: {
+    color: colors.text,
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: spacing.sm,
+  },
+  moduleMeta: {
     color: colors.textMuted,
     fontSize: 12,
     fontWeight: "800",
-    letterSpacing: 1.2,
-    marginTop: spacing.sm,
   },
-  rewardWrap: {
-    alignItems: "center",
-    marginTop: spacing.lg,
-  },
-  startBubble: {
-    alignItems: "center",
-    alignSelf: "center",
-    backgroundColor: "#171B28",
-    borderRadius: radius.pill,
+  moduleMetaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
     marginBottom: spacing.sm,
-    marginTop: -18,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 10,
   },
-  startBubbleText: {
-    color: colors.surface,
+  moduleStep: {
+    color: colors.textMuted,
     fontSize: 12,
     fontWeight: "900",
+    letterSpacing: 1,
+    textTransform: "uppercase",
   },
-  timeline: {
-    paddingBottom: spacing.xl,
+  moduleTitle: {
+    color: colors.primaryDark,
+    fontSize: 17,
+    fontWeight: "900",
+    marginBottom: spacing.xs,
+  },
+  nodeBadge: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.borderStrong,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    height: 38,
+    justifyContent: "center",
+    left: -19,
+    position: "absolute",
+    top: 20,
+    width: 38,
+    zIndex: 2,
+  },
+  nodeBadgeCelebration: {
+    backgroundColor: "#F0A33A",
+    borderColor: "#F0A33A",
+  },
+  nodeBadgeCurrent: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  nodeBadgeDone: {
+    backgroundColor: colors.success,
+    borderColor: colors.success,
+  },
+  nodeWrap: {
     position: "relative",
+    width: "47%",
   },
-  timelineItem: {
-    marginBottom: spacing.xl,
-    width: "50%",
+  nodeWrapLeft: {
+    marginRight: "53%",
   },
-  timelineItemLeft: {
+  nodeWrapRight: {
+    marginLeft: "53%",
+  },
+  primaryButton: {
     alignItems: "center",
-    alignSelf: "flex-start",
-    paddingRight: spacing.md,
+    backgroundColor: colors.primaryDark,
+    borderRadius: radius.pill,
+    flexDirection: "row",
+    gap: spacing.sm,
+    justifyContent: "center",
+    marginBottom: spacing.lg,
+    paddingVertical: 16,
   },
-  timelineItemRight: {
+  primaryButtonDisabled: {
+    backgroundColor: colors.surfaceDisabled,
+  },
+  primaryButtonText: {
+    color: colors.surface,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  roadmapCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    minHeight: 152,
+    padding: spacing.md,
+  },
+  roadmapCardCelebration: {
+    backgroundColor: "#FFF8E8",
+    borderColor: "#F6D38C",
+  },
+  secondaryCta: {
     alignItems: "center",
-    alignSelf: "flex-end",
-    paddingLeft: spacing.md,
+    alignSelf: "center",
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.pill,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 12,
+  },
+  secondaryCtaText: {
+    color: colors.primaryDark,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  subtitle: {
+    color: colors.text,
+    fontSize: 15,
+    lineHeight: 23,
+    marginBottom: spacing.lg,
+  },
+  summaryCard: {
+    backgroundColor: "#FFFCF4",
+    borderRadius: radius.xl,
+    flex: 1,
+    minHeight: 88,
+    minWidth: 0,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.md,
+  },
+  summaryGrid: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  summaryLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 6,
+  },
+  summaryValue: {
+    color: colors.primaryDark,
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  summaryValueCompact: {
+    color: colors.primaryDark,
+    fontSize: 15,
+    fontWeight: "900",
+    textTransform: "uppercase",
   },
   title: {
     color: colors.primaryDark,
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "900",
-    lineHeight: 34,
-    marginBottom: spacing.lg,
+    lineHeight: 32,
   },
-  unitProgressWrap: {
-    marginTop: spacing.sm,
-    width: "100%",
-  },
-  unitTitle: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: "700",
-    marginTop: spacing.md,
-    textAlign: "center",
-  },
-  unitTitleLocked: {
-    color: "#BCC0CF",
+  treeWrap: {
+    paddingBottom: spacing.xl,
+    position: "relative",
   },
 });

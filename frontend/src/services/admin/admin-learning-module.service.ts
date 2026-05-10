@@ -34,8 +34,14 @@ export class AdminLearningModuleService extends BaseAdminService {
     });
   }
 
-  deactivate(id: number) {
+  delete(id: number) {
     return this.request<ApiVoidResponse>(`/api/admin/learning-modules/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  deactivate(id: number) {
+    return this.request<ApiVoidResponse>(`/api/admin/learning-modules/deactive/${id}`, {
       method: 'DELETE',
     });
   }
