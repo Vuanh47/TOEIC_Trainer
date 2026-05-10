@@ -34,6 +34,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final TokenBlacklistService tokenBlacklistService;
     private final UserMapper userMapper;
+    private final UserLoginStreakService userLoginStreakService;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -83,6 +84,7 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
+        userLoginStreakService.recordLogin(user.getEmail());
         return buildAuthResponse(user);
     }
 

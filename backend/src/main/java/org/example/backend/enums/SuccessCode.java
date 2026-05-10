@@ -136,6 +136,7 @@ public enum SuccessCode {
     GRAMMAR_UNFAVORITED(1121, "Grammar removed from favorites successfully", HttpStatus.OK),
     GRAMMAR_FAVORITE_LISTED(1122, "Favorite grammars listed successfully", HttpStatus.OK),
     GRAMMAR_FAVORITE_TITLE_LISTED(1123, "Favorite grammar titles listed successfully", HttpStatus.OK),
+    USER_STREAK_RETRIEVED(1124, "User streak retrieved successfully", HttpStatus.OK),
 
     PATIENT_CLASSIFICATION_DELETED(1023, "Xóa phân loại bệnh nhân thành công", HttpStatus.OK),
     CLASSIFICATION_RETRIEVED(1022, "Lấy thông tin phân loại thành công", HttpStatus.OK),

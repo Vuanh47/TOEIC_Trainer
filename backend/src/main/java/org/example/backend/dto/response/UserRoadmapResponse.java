@@ -20,6 +20,7 @@ public class UserRoadmapResponse {
     private Double progressPercent;
     private Long currentModuleId;
     private LocalDateTime assignedAt;
+    private LocalDateTime completedAt;
     private List<MilestoneItem> milestones;
 
     @Getter

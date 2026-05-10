@@ -41,6 +41,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/auth/login",
                                 "/auth/register",
+                                "/users/admin",
                                 "/oauth2/**",
                                 "/login/**",
                                 "/oauth2-test.html",

@@ -27,6 +27,7 @@ import java.util.Set;
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private final UserRepository userRepository;
+    private final org.example.backend.service.UserLoginStreakService userLoginStreakService;
 
     @Override
     @Transactional
@@ -68,6 +69,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         }
 
         User savedUser = userRepository.save(user);
+        userLoginStreakService.recordLogin(savedUser.getEmail());
 
         Set<GrantedAuthority> authorities = new HashSet<>();
         authorities.add(new SimpleGrantedAuthority("ROLE_" + savedUser.getRole().name()));
