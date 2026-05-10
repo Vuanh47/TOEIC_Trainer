@@ -33,6 +33,7 @@ export type AdminField = {
 export type AdminColumn<T> = {
   label: string;
   render: (item: T) => string;
+  width?: number;
 };
 
 type AdminCrudPanelProps<T> = {
@@ -52,6 +53,25 @@ type AdminCrudPanelProps<T> = {
   title: string;
   working?: boolean;
 };
+
+const ACTION_COLUMN_WIDTH = 120;
+
+function resolveColumnWidth(label: string, explicitWidth?: number) {
+  if (explicitWidth) return explicitWidth;
+
+  const normalized = label.toLowerCase();
+
+  if (normalized === "id") return 88;
+  if (["part", "sort", "order", "active", "free"].includes(normalized)) return 112;
+  if (normalized.includes("id")) return 116;
+  if (normalized.includes("question")) return 420;
+  if (normalized.includes("description") || normalized.includes("content")) return 360;
+  if (normalized.includes("title") || normalized.includes("name")) return 260;
+  if (normalized.includes("source") || normalized.includes("type") || normalized.includes("status")) return 160;
+  if (normalized.includes("url")) return 320;
+
+  return 180;
+}
 
 export default function AdminCrudPanel<T>({
   columns,
@@ -78,6 +98,13 @@ export default function AdminCrudPanel<T>({
   const currentPage = Math.min(page, totalPages);
   const startIndex = (currentPage - 1) * pageSize;
   const paginatedRecords = records.slice(startIndex, startIndex + pageSize);
+  const columnWidths = columns.map((column) =>
+    resolveColumnWidth(column.label, column.width),
+  );
+  const tableContentWidth = columnWidths.reduce(
+    (sum, width) => sum + width,
+    ACTION_COLUMN_WIDTH,
+  );
 
   useEffect(() => {
     if (page > totalPages) {
@@ -282,11 +309,25 @@ export default function AdminCrudPanel<T>({
         </View>
       </Modal>
 
-      <ScrollView horizontal style={styles.tableScroller}>
-        <View style={styles.table}>
+      <ScrollView
+        contentContainerStyle={styles.tableScrollerContent}
+        horizontal
+        style={styles.tableScroller}
+      >
+        <View style={[styles.table, { minWidth: tableContentWidth }]}>
           <View style={styles.tableHeader}>
-            {columns.map((column) => (
-              <Text key={column.label} style={styles.headerCell}>
+            {columns.map((column, index) => (
+              <Text
+                key={column.label}
+                style={[
+                  styles.headerCell,
+                  {
+                    flexBasis: columnWidths[index],
+                    flexGrow: 1,
+                    minWidth: columnWidths[index],
+                  },
+                ]}
+              >
                 {column.label}
               </Text>
             ))}
@@ -294,8 +335,19 @@ export default function AdminCrudPanel<T>({
           </View>
           {paginatedRecords.map((item) => (
             <View key={getItemId(item)} style={styles.tableRow}>
-              {columns.map((column) => (
-                <Text key={column.label} numberOfLines={2} style={styles.cell}>
+              {columns.map((column, index) => (
+                <Text
+                  key={column.label}
+                  numberOfLines={2}
+                  style={[
+                    styles.cell,
+                    {
+                      flexBasis: columnWidths[index],
+                      flexGrow: 1,
+                      minWidth: columnWidths[index],
+                    },
+                  ]}
+                >
                   {column.render(item)}
                 </Text>
               ))}
@@ -384,15 +436,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   actionCell: {
-    maxWidth: 104,
-    minWidth: 104,
+    width: ACTION_COLUMN_WIDTH,
   },
   cell: {
     color: colors.text,
     fontSize: 13,
     fontWeight: "600",
     lineHeight: 19,
-    minWidth: 148,
     paddingRight: spacing.md,
   },
   emptyText: {
@@ -485,7 +535,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "800",
     letterSpacing: 0,
-    minWidth: 148,
     paddingRight: spacing.md,
     textTransform: "uppercase",
   },
@@ -580,8 +629,10 @@ const styles = StyleSheet.create({
     color: colors.danger,
   },
   rowActions: {
+    alignItems: "center",
     flexDirection: "row",
     gap: spacing.md,
+    justifyContent: "flex-start",
   },
   secondaryButton: {
     alignItems: "center",
@@ -693,7 +744,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   table: {
-    minWidth: "100%",
+    alignSelf: "stretch",
+    flex: 1,
+    width: "100%",
   },
   tableHeader: {
     backgroundColor: "#162946",
@@ -722,6 +775,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 1,
     shadowRadius: 22,
+  },
+  tableScrollerContent: {
+    flexGrow: 1,
   },
   textarea: {
     minHeight: 74,
