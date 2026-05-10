@@ -9,4 +9,8 @@ public interface UserModuleProgressRepository extends JpaRepository<UserModulePr
     List<UserModuleProgress> findByUserIdAndModuleIdIn(Long userId, List<Long> moduleIds);
 
     Optional<UserModuleProgress> findByUserIdAndModuleId(Long userId, Long moduleId);
+
+    boolean existsByModuleId(Long moduleId);
+
+    void deleteByModuleId(Long moduleId);
 }

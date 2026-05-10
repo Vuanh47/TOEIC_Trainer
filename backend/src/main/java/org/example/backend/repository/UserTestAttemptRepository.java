@@ -4,13 +4,19 @@ import org.example.backend.entity.UserTestAttempt;
 import org.example.backend.dto.response.UserTestLeaderboardResponse;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
 public interface UserTestAttemptRepository extends JpaRepository<UserTestAttempt, Long> {
     List<UserTestAttempt> findByUserIdOrderByStartedAtDesc(Long userId);
     List<UserTestAttempt> findByTestIdOrderByStartedAtDesc(Long testId);
+
+    @Modifying
+    @Query("delete from UserTestAttempt a where a.test.id = :testId")
+    void deleteByTestId(@Param("testId") Long testId);
 
     @Query("""
             select new org.example.backend.dto.response.UserTestLeaderboardResponse(

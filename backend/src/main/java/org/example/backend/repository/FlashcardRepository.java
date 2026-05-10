@@ -14,6 +14,10 @@ public interface FlashcardRepository extends JpaRepository<Flashcard, Long> {
 
     List<Flashcard> findAllByModuleIdAndActiveTrueOrderByCreatedAtDesc(Long moduleId);
 
+    long countByModuleId(Long moduleId);
+
+    void deleteByModuleId(Long moduleId);
+
     long countByModuleIdAndActiveTrue(Long moduleId);
 
     @Query("""
